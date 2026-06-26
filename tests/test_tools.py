@@ -1,0 +1,60 @@
+from app.tools.bazi_tools import (
+    build_bazi_context_data,
+    calculate_bazi,
+    list_cities,
+    list_provinces,
+)
+
+
+def test_calculate_bazi_tool_data_shape():
+    result = calculate_bazi(
+        name="测试",
+        gender="未知",
+        birth_year=1995,
+        birth_month=5,
+        birth_day=12,
+        birth_hour=9,
+        birth_minute=30,
+        province="北京市",
+        city="北京市",
+    )
+
+    assert result["ok"] is True
+    assert result["tool_name"] == "calculate_bazi"
+    assert result["data"]["year_pillar"]
+    assert result["data"]["five_elements"]["火"] >= 0
+
+
+def test_build_bazi_context_tool_data_shape():
+    result = build_bazi_context_data(
+        name="测试",
+        gender="未知",
+        birth_year=1995,
+        birth_month=5,
+        birth_day=12,
+        birth_hour=9,
+        birth_minute=30,
+        province="北京市",
+        city="北京市",
+    )
+
+    assert result["ok"] is True
+    assert result["tool_name"] == "build_bazi_context"
+    assert result["data"]["context"]["pillars"]["day"]
+    assert set(result["data"]["context"]["five_element_balance"]["counts"]) == {
+        "木",
+        "火",
+        "土",
+        "金",
+        "水",
+    }
+
+
+def test_city_tools_data_shape():
+    provinces = list_provinces()
+    cities = list_cities("北京市")
+
+    assert provinces["ok"] is True
+    assert "北京市" in provinces["data"]["provinces"]
+    assert cities["ok"] is True
+    assert "北京市" in cities["data"]["cities"]
