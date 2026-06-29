@@ -14,6 +14,7 @@ from agents.lifecycle import RunHooksBase
 
 from app.agents.main_agent import main_agent
 from app.runtime.config import settings
+from app.runtime.output_format import format_final_output
 from app.runtime.run_context import WenjiaRunContext
 from app.runtime.flow_events import (
     compact_error_message,
@@ -194,7 +195,7 @@ async def stream_agent_events(session_id: str, message: str) -> AsyncIterator[Fl
                 {
                     "type": "done",
                     "success": True,
-                    "content": str(result.final_output),
+                    "content": format_final_output(result.final_output),
                     "message": "推演完成。",
                 }
             )

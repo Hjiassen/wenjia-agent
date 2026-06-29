@@ -9,6 +9,7 @@ from agents.extensions.memory import SQLAlchemySession
 from app.agents.main_agent import main_agent
 from app.runtime.config import settings
 from app.runtime.models import build_run_config
+from app.runtime.output_format import format_final_output
 from app.runtime.run_context import WenjiaRunContext
 
 MAX_TURNS = 16
@@ -34,4 +35,4 @@ async def run_agent(session_id: str, message: str) -> str:
         )
     except MaxTurnsExceeded:
         return _MAX_TURNS_MESSAGE
-    return str(result.final_output)
+    return format_final_output(result.final_output)
