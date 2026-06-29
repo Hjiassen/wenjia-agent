@@ -26,6 +26,20 @@ poetry run python examples\cli_bazi.py
 poetry run python examples\cli_agent.py
 ```
 
+## 运行 Web Demo
+
+先在 `.env` 填写 `OPENAI_API_KEY`，然后运行：
+
+```powershell
+poetry run uvicorn examples.web.app:app --reload --host 127.0.0.1 --port 8000
+```
+
+浏览器打开：
+
+```text
+http://127.0.0.1:8000
+```
+
 ## 测试
 
 ```powershell

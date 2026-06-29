@@ -132,6 +132,28 @@ Linux:
 poetry run python examples/cli_agent.py
 ```
 
+### 运行 Web Demo
+
+Web Demo 提供浏览器聊天界面，后端复用同一个 Agent runner。
+
+Windows PowerShell:
+
+```powershell
+poetry run uvicorn examples.web.app:app --reload --host 127.0.0.1 --port 8000
+```
+
+Linux:
+
+```bash
+poetry run uvicorn examples.web.app:app --reload --host 127.0.0.1 --port 8000
+```
+
+打开：
+
+```text
+http://127.0.0.1:8000
+```
+
 ## 配置
 
 从 `.env.example` 创建 `.env`，并配置运行时参数：
@@ -203,6 +225,7 @@ app/
   tools/       # OpenAI Agents SDK function tools
 docs/          # Requirements, architecture, design, contribution docs
 examples/      # CLI examples
+  web/         # FastAPI web chat demo
 tests/         # Unit tests
 ```
 
@@ -248,6 +271,7 @@ poetry run python -m compileall app examples tests
 | [开发指南](docs/DEVELOPMENT.md) | 本地环境和日常命令。 |
 | [贡献指南](docs/CONTRIBUTING.md) | 贡献规则和检查清单。 |
 | [工具插件指南](docs/TOOL_PLUGIN_GUIDE.md) | 工具设计和扩展指南。 |
+| [Web Demo](examples/web/README.md) | 浏览器聊天 Demo 用法和接口说明。 |
 
 ## 贡献
 
