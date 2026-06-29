@@ -5,6 +5,7 @@
   --line: #d9ded9;
   --paper: #fbfaf6;
   --surface: #ffffff;
+  --surface-soft: #f4f7f2;
   --teal: #2d7d73;
   --teal-dark: #1f5e57;
   --gold: #c99a2e;
@@ -39,9 +40,9 @@ button {
 
 .app-shell {
   display: grid;
-  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
   gap: 24px;
-  width: min(1180px, calc(100% - 32px));
+  width: min(1220px, calc(100% - 32px));
   min-height: calc(100vh - 32px);
   margin: 16px auto;
 }
@@ -50,7 +51,7 @@ button {
 .chat-panel {
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.9);
   box-shadow: var(--shadow);
 }
 
@@ -58,7 +59,9 @@ button {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  max-height: calc(100vh - 32px);
   padding: 18px;
+  overflow: hidden;
 }
 
 .brand {
@@ -90,7 +93,10 @@ button {
 .brand p,
 .eyebrow,
 .session-id,
-.status-panel p {
+.status-panel p,
+.history-meta,
+.history-preview,
+.history-empty {
   color: var(--muted);
   font-size: 13px;
 }
@@ -109,6 +115,13 @@ button {
   color: var(--teal-dark);
 }
 
+.panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .session-id {
   overflow-wrap: anywhere;
 }
@@ -119,20 +132,92 @@ button {
 }
 
 .prompt-list button,
-.secondary-button {
-  min-height: 42px;
+.small-button,
+.text-button,
+.history-item {
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--ink);
   background: var(--surface);
+}
+
+.prompt-list button,
+.history-item {
   text-align: left;
   line-height: 1.35;
   padding: 10px 12px;
 }
 
+.prompt-list button {
+  min-height: 42px;
+}
+
+.small-button {
+  min-height: 32px;
+  padding: 6px 12px;
+  font-weight: 700;
+}
+
+.text-button {
+  min-height: 30px;
+  padding: 4px 8px;
+  color: var(--teal-dark);
+  background: transparent;
+  border-color: transparent;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .prompt-list button:hover,
-.secondary-button:hover {
+.small-button:hover,
+.text-button:hover,
+.history-item:hover {
   border-color: var(--teal);
+}
+
+.history-panel {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.history-list {
+  display: grid;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.history-item {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+}
+
+.history-item.active {
+  border-color: var(--teal);
+  background: var(--surface-soft);
+}
+
+.history-title {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.history-meta,
+.history-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-empty {
+  padding: 10px 0;
+}
+
+.status-panel {
+  margin-top: auto;
 }
 
 .status-panel p {
@@ -283,11 +368,16 @@ button {
   border: 0;
 }
 
-@media (max-width: 820px) {
+@media (max-width: 860px) {
   .app-shell {
     grid-template-columns: 1fr;
     width: min(100% - 20px, 720px);
     margin: 10px auto;
+  }
+
+  .sidebar {
+    max-height: none;
+    overflow: visible;
   }
 
   .chat-panel {

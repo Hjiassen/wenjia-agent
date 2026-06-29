@@ -1,6 +1,9 @@
 # wenjia-agent Web Demo
 
-This example provides a lightweight browser chat UI for `wenjia-agent`.
+This example provides a lightweight Chinese browser chat UI for `wenjia-agent`.
+It supports multi-turn chat, local conversation history, and preset recommended
+questions. Agent context is keyed by `session_id`, while the visible chat history
+is stored in the browser's `localStorage`.
 
 ## Run
 

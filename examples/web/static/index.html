@@ -3,73 +3,81 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>wenjia-agent Web Demo</title>
+    <title>文甲 Agent 演示</title>
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
     <main class="app-shell">
-      <aside class="sidebar" aria-label="Demo controls">
+      <aside class="sidebar" aria-label="演示控制区">
         <header class="brand">
           <img src="/static/wenjia-mark.svg" alt="" class="brand-mark" />
           <div>
-            <h1>wenjia-agent</h1>
-            <p>OpenAI Agents SDK web demo</p>
+            <h1>文甲 Agent</h1>
+            <p>八字智能体开源演示</p>
           </div>
         </header>
 
-        <section class="panel">
-          <h2>Session</h2>
-          <p class="session-id" id="sessionId">loading</p>
-          <button class="secondary-button" id="newSessionButton" type="button">New session</button>
+        <section class="panel session-panel">
+          <div class="panel-heading">
+            <h2>当前会话</h2>
+            <button class="small-button" id="newSessionButton" type="button">新建</button>
+          </div>
+          <p class="session-id" id="sessionId">加载中</p>
         </section>
 
         <section class="panel">
-          <h2>Examples</h2>
+          <h2>推荐问题</h2>
           <div class="prompt-list">
-            <button type="button" data-prompt="请用工具计算一个基础命盘：姓名测试，性别未知，公历1995年5月12日9点30分，北京市北京市出生。只需要简短输出四柱和五行分布。">
-              Basic BaZi chart
+            <button type="button" data-prompt="我最近事业怎么样？需要我先补充哪些出生信息？">
+              事业趋势需要哪些资料
             </button>
-            <button type="button" data-prompt="我想给一个公历2024年8月20日10点15分、北京市出生的孩子起名，姓林，偏清雅自然风格，请先给起名策略。">
-              Naming strategy
+            <button type="button" data-prompt="请排基础命盘：姓名测试，性别未知，公历1995年5月12日9点30分，出生地北京市北京市。只输出四柱和五行分布。">
+              快速排一个基础命盘
             </button>
-            <button type="button" data-prompt="帮我解释一下八字工具里的十神、纳音、神煞和空亡分别是什么，适合初学者理解。">
-              Field explanation
+            <button type="button" data-prompt="基于刚才的出生信息，请用稳健、非绝对化的方式分析适合的职业方向。">
+              继续追问职业方向
+            </button>
+            <button type="button" data-prompt="我想给一个孩子起名，请先告诉我需要提供哪些出生信息和偏好信息。">
+              起名前需要准备什么
             </button>
           </div>
+        </section>
+
+        <section class="panel history-panel">
+          <div class="panel-heading">
+            <h2>历史记录</h2>
+            <button class="text-button" id="clearHistoryButton" type="button">清空</button>
+          </div>
+          <div class="history-list" id="historyList"></div>
         </section>
 
         <section class="panel status-panel">
-          <h2>Status</h2>
-          <p><span class="status-dot" id="statusDot"></span><span id="statusText">Checking</span></p>
+          <h2>状态</h2>
+          <p><span class="status-dot" id="statusDot"></span><span id="statusText">检测中</span></p>
         </section>
       </aside>
 
-      <section class="chat-panel" aria-label="Agent chat">
+      <section class="chat-panel" aria-label="Agent 对话">
         <header class="chat-header">
           <div>
-            <p class="eyebrow">Agent workspace</p>
-            <h2>Ask for charting, analysis, naming, or tool help</h2>
+            <p class="eyebrow">Agent 工作台</p>
+            <h2>命盘、分析、起名与工具问答</h2>
           </div>
-          <a href="/docs" target="_blank" rel="noreferrer">API docs</a>
+          <a href="/docs" target="_blank" rel="noreferrer">接口文档</a>
         </header>
 
-        <div class="messages" id="messages" aria-live="polite">
-          <article class="message assistant">
-            <div class="message-role">Agent</div>
-            <div class="message-body">输入出生资料、合盘问题、起名需求或工具字段问题。我会通过 wenjia-agent 的工具和多 Agent 工作流处理。</div>
-          </article>
-        </div>
+        <div class="messages" id="messages" aria-live="polite"></div>
 
         <form class="composer" id="chatForm">
-          <label class="sr-only" for="messageInput">Message</label>
+          <label class="sr-only" for="messageInput">消息</label>
           <textarea
             id="messageInput"
             rows="3"
             maxlength="4000"
-            placeholder="Type a message. Shift + Enter for a new line."
+            placeholder="输入问题，按 Enter 发送"
             required
           ></textarea>
-          <button id="sendButton" type="submit">Send</button>
+          <button id="sendButton" type="submit">发送</button>
         </form>
       </section>
     </main>
