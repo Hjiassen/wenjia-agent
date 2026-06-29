@@ -281,6 +281,7 @@ poetry run python -m compileall app examples tests
 | [Software Design](docs/SOFTWARE_DESIGN.md) | Technical design and implementation boundaries. |
 | [Architecture](docs/ARCHITECTURE.md) | Module layout and runtime architecture. |
 | [R&D Process](docs/RD_PROCESS.md) | Development workflow and release process. |
+| [Agent Flow Visualization](docs/AGENT_FLOW_VISUALIZATION.md) | SSE event protocol and Web Demo visualization design. |
 | [Development Guide](docs/DEVELOPMENT.md) | Local setup and day-to-day commands. |
 | [Contributing Guide](docs/CONTRIBUTING.md) | Contribution rules and checklist. |
 | [Tool Plugin Guide](docs/TOOL_PLUGIN_GUIDE.md) | Tool design and extension guide. |

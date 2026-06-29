@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from app.runtime.runner import run_agent
+from app.runtime.stream_runner import stream_agent_events
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -65,3 +67,27 @@ async def chat(payload: ChatRequest) -> ChatResponse:
         raise HTTPException(status_code=502, detail=f"Agent request failed: {exc}") from exc
 
     return ChatResponse(session_id=session_id, output=output)
+
+
+@app.post("/api/chat/stream")
+async def chat_stream(payload: ChatRequest) -> StreamingResponse:
+    """Run one Agent turn and stream visualization events via SSE."""
+
+    session_id = payload.session_id or f"web:{uuid.uuid4()}"
+
+    async def event_generator():
+        async for event in stream_agent_events(
+            session_id=session_id,
+            message=payload.message.strip(),
+        ):
+            yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

@@ -272,6 +272,7 @@ poetry run python -m compileall app examples tests
 | [软件设计文档](docs/SOFTWARE_DESIGN.md) | 技术设计和实现边界。 |
 | [架构说明](docs/ARCHITECTURE.md) | 模块布局和运行时架构。 |
 | [研发流程](docs/RD_PROCESS.md) | 开发工作流和发布流程。 |
+| [Agent 流程可视化](docs/AGENT_FLOW_VISUALIZATION.md) | SSE 事件协议和 Web Demo 可视化设计。 |
 | [开发指南](docs/DEVELOPMENT.md) | 本地环境和日常命令。 |
 | [贡献指南](docs/CONTRIBUTING.md) | 贡献规则和检查清单。 |
 | [工具插件指南](docs/TOOL_PLUGIN_GUIDE.md) | 工具设计和扩展指南。 |

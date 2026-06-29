@@ -16,7 +16,50 @@ def test_web_index_and_health():
         assert "问甲 Agent" in index_response.text
         assert "推荐问题" in index_response.text
         assert "历史记录" in index_response.text
+        assert "推演流程" in index_response.text
         assert health_response.json() == {"ok": True}
+
+    asyncio.run(run_test())
+
+
+def test_web_chat_stream_uses_agent_stream(monkeypatch):
+    async def fake_stream_agent_events(session_id: str, message: str):
+        assert session_id == "web:test-stream"
+        assert "事业" in message
+        yield {
+            "type": "run_start",
+            "session_id": session_id,
+            "message": "开始处理请求。",
+        }
+        yield {
+            "type": "tool_start",
+            "session_id": session_id,
+            "tool": "validate_birth_info_tool",
+            "display_name": "出生信息完整性检查",
+        }
+        yield {
+            "type": "done",
+            "session_id": session_id,
+            "success": True,
+            "content": "fake streamed output",
+        }
+
+    async def run_test() -> None:
+        monkeypatch.setattr("examples.web.app.stream_agent_events", fake_stream_agent_events)
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            async with client.stream(
+                "POST",
+                "/api/chat/stream",
+                json={"session_id": "web:test-stream", "message": "事业怎么样"},
+            ) as response:
+                body = (await response.aread()).decode("utf-8")
+
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/event-stream")
+        assert "data: " in body
+        assert "出生信息完整性检查" in body
+        assert "fake streamed output" in body
 
     asyncio.run(run_test())
 

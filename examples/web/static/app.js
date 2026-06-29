@@ -134,7 +134,7 @@ function updateSessionLabel() {
   sessionIdLabel.textContent = sessionId.replace("web:", "");
 }
 
-function appendMessage(role, body, type = "") {
+function appendMessage(role, body, type = "", flowSteps = []) {
   const article = document.createElement("article");
   article.className = `message ${role} ${type}`.trim();
 
@@ -146,10 +146,109 @@ function appendMessage(role, body, type = "") {
   bodyNode.className = "message-body";
   bodyNode.textContent = body;
 
-  article.append(roleNode, bodyNode);
+  article.append(roleNode);
+  if (role === "assistant") {
+    updateMessageFlow(article, flowSteps);
+  }
+  article.append(bodyNode);
   messages.append(article);
   messages.scrollTop = messages.scrollHeight;
   return article;
+}
+
+function getFlowStepText(step) {
+  const name = step.display_name || step.agent_label || step.tool || step.agent || "Agent";
+  if (step.type === "run_start") {
+    return step.message || "开始处理请求";
+  }
+  if (step.type === "agent_start") {
+    return step.message || `${name}开始处理`;
+  }
+  if (step.type === "thinking") {
+    return step.message || `${name}正在思考下一步`;
+  }
+  if (step.type === "handoff") {
+    return step.message || "正在切换专门 Agent";
+  }
+  if (step.type === "tool_start") {
+    return step.message || `正在执行${name}`;
+  }
+  if (step.type === "tool_done") {
+    const duration = typeof step.duration === "number" ? ` · ${step.duration.toFixed(2)}s` : "";
+    return `${step.message || `${name}${step.success === false ? "失败" : "完成"}`}${duration}`;
+  }
+  if (step.type === "generating") {
+    return step.message || "正在整理最终回答";
+  }
+  if (step.type === "done") {
+    return step.message || "推演完成";
+  }
+  if (step.type === "error") {
+    return step.message || "请求失败";
+  }
+  return step.message || "处理中";
+}
+
+function getFlowSummary(steps) {
+  if (!steps.length) {
+    return "等待开始";
+  }
+  const toolDoneSteps = steps.filter((step) => step.type === "tool_done");
+  const totalDuration = toolDoneSteps.reduce(
+    (sum, step) => sum + (typeof step.duration === "number" ? step.duration : 0),
+    0,
+  );
+  const lastStep = steps.at(-1);
+  const toolText = `${toolDoneSteps.length} 个工具`;
+  const durationText = totalDuration > 0 ? ` · ${totalDuration.toFixed(2)}s` : "";
+  return `${toolText}${durationText} · ${getFlowStepText(lastStep)}`;
+}
+
+function createFlowBlock(steps) {
+  const details = document.createElement("details");
+  details.className = "flow-block";
+  details.open = steps.some((step) => step.type === "error");
+
+  const summary = document.createElement("summary");
+  summary.textContent = `推演过程 · ${getFlowSummary(steps)}`;
+  details.append(summary);
+
+  const list = document.createElement("ol");
+  list.className = "flow-steps";
+  steps.forEach((step) => {
+    const item = document.createElement("li");
+    item.className = `flow-step ${step.type} ${step.success === false ? "failed" : ""}`.trim();
+
+    const dot = document.createElement("span");
+    dot.className = "flow-dot";
+
+    const text = document.createElement("span");
+    text.className = "flow-text";
+    text.textContent = getFlowStepText(step);
+
+    item.append(dot, text);
+    list.append(item);
+  });
+
+  details.append(list);
+  return details;
+}
+
+function updateMessageFlow(article, flowSteps) {
+  const existing = article.querySelector(".flow-block");
+  if (existing) {
+    existing.remove();
+  }
+  if (!flowSteps || !flowSteps.length) {
+    return;
+  }
+  const bodyNode = article.querySelector(".message-body");
+  const flowBlock = createFlowBlock(flowSteps);
+  if (bodyNode) {
+    article.insertBefore(flowBlock, bodyNode);
+  } else {
+    article.append(flowBlock);
+  }
 }
 
 function renderMessages() {
@@ -158,7 +257,7 @@ function renderMessages() {
 
   appendMessage("assistant", welcomeText);
   conversation.messages.forEach((message) => {
-    appendMessage(message.role, message.body, message.type || "");
+    appendMessage(message.role, message.body, message.type || "", message.flowSteps || []);
   });
 }
 
@@ -210,12 +309,13 @@ function touchConversation(conversation) {
   renderHistory();
 }
 
-function saveMessage(role, body, type = "") {
+function saveMessage(role, body, type = "", flowSteps = []) {
   const conversation = getCurrentConversation();
   conversation.messages.push({
     role,
     body,
     type,
+    flowSteps,
     createdAt: nowIso(),
   });
   touchConversation(conversation);
@@ -236,35 +336,118 @@ async function sendMessage(message) {
   saveMessage("user", message);
   messageInput.value = "";
   setSending(true);
-  const pending = appendMessage("assistant", "正在思考...");
+  const pending = appendMessage("assistant", "正在连接推演流程...");
+  const flowSteps = [];
 
   try {
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, session_id: sessionId }),
-    });
-
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.detail || "Agent 请求失败。");
-    }
-
-    if (payload.session_id !== sessionId) {
-      setActiveSession(payload.session_id);
-    }
-
-    pending.querySelector(".message-body").textContent = payload.output;
-    saveMessage("assistant", payload.output);
+    const finalOutput = await streamMessage(message, flowSteps, pending);
+    pending.querySelector(".message-body").textContent = finalOutput;
+    saveMessage("assistant", finalOutput, "", flowSteps);
   } catch (error) {
     const text = error.message || "请求失败，请稍后再试。";
     pending.classList.add("error");
     pending.querySelector(".message-body").textContent = text;
-    saveMessage("assistant", text, "error");
+    saveMessage("assistant", text, "error", flowSteps);
   } finally {
     setSending(false);
     messageInput.focus();
   }
+}
+
+async function streamMessage(message, flowSteps, pending) {
+  const response = await fetch("/api/chat/stream", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, session_id: sessionId }),
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.detail || "Agent 请求失败。");
+  }
+
+  if (!response.body) {
+    return sendJsonMessage(message);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalOutput = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const chunks = buffer.split("\n\n");
+    buffer = chunks.pop() || "";
+    for (const chunk of chunks) {
+      const event = parseSseChunk(chunk);
+      if (!event) {
+        continue;
+      }
+      if (event.session_id && event.session_id !== sessionId) {
+        setActiveSession(event.session_id);
+      }
+      flowSteps.push(event);
+      updateMessageFlow(pending, flowSteps);
+
+      if (event.type === "done") {
+        if (event.success === false) {
+          throw new Error(event.message || "Agent 请求失败。");
+        }
+        finalOutput = event.content || "";
+        continue;
+      }
+      if (event.type === "error") {
+        throw new Error(event.message || "Agent 请求失败。");
+      }
+
+      pending.querySelector(".message-body").textContent = getFlowStepText(event);
+    }
+  }
+
+  if (!finalOutput) {
+    throw new Error("Agent 未返回最终内容。");
+  }
+
+  return finalOutput;
+}
+
+function parseSseChunk(chunk) {
+  const data = chunk
+    .split("\n")
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice(5).trim())
+    .join("\n");
+
+  if (!data) {
+    return null;
+  }
+
+  return JSON.parse(data);
+}
+
+async function sendJsonMessage(message) {
+  const response = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, session_id: sessionId }),
+  });
+
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.detail || "Agent 请求失败。");
+  }
+
+  if (payload.session_id !== sessionId) {
+    setActiveSession(payload.session_id);
+  }
+
+  return payload.output;
 }
 
 async function checkHealth() {

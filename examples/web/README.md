@@ -1,9 +1,10 @@
 # wenjia-agent Web Demo
 
 This example provides a lightweight Chinese browser chat UI for `wenjia-agent`.
-It supports multi-turn chat, local conversation history, and preset recommended
-questions. Agent context is keyed by `session_id`, while the visible chat history
-is stored in the browser's `localStorage`.
+It supports multi-turn chat, local conversation history, preset recommended
+questions, and SSE-based Agent flow visualization. Agent context is keyed by
+`session_id`, while the visible chat history is stored in the browser's
+`localStorage`.
 
 ## Run
 
@@ -44,4 +45,5 @@ WENJIA_SESSION_DB_URL=sqlite+aiosqlite:///./wenjia_agent_sessions.db
 | `GET` | `/` | Static web UI |
 | `GET` | `/health` | Health check |
 | `POST` | `/api/chat` | Run one Agent turn |
+| `POST` | `/api/chat/stream` | Stream Agent flow events and final output |
 | `GET` | `/docs` | FastAPI-generated API docs |
