@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { MessageList } from "./components/MessageList";
 import { Composer } from "./components/Composer";
-import { RunFlowDrawer, type RunFlowTurn } from "./components/RunFlowDrawer";
+import { RunFlowModal, type RunFlowTurn } from "./components/RunFlowModal";
 import { useChatStream } from "./hooks/useChatStream";
-import type { ChatMessage, Conversation, FlowEvent } from "./types";
+import type { ChatMessage, Conversation, FlowEvent, Profile } from "./types";
 import {
   createConversation,
   loadActiveSessionId,
@@ -43,7 +43,19 @@ export default function App() {
   const [pending, setPending] = useState<PendingState>(IDLE_PENDING);
   const [health, setHealth] = useState<HealthStatus>("checking");
   const [runFlowOpen, setRunFlowOpen] = useState(false);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const { send, isSending } = useChatStream();
+
+  const loadProfiles = useCallback(async (id: string) => {
+    try {
+      const response = await fetch(`/api/profiles/${encodeURIComponent(id)}`);
+      if (!response.ok) return;
+      const payload = await response.json();
+      setProfiles(Array.isArray(payload.profiles) ? payload.profiles : []);
+    } catch {
+      // Profiles are a non-critical panel; ignore transient fetch errors.
+    }
+  }, []);
 
   useEffect(() => {
     saveConversations(conversations);
@@ -52,6 +64,10 @@ export default function App() {
   useEffect(() => {
     saveActiveSessionId(sessionId);
   }, [sessionId]);
+
+  useEffect(() => {
+    loadProfiles(sessionId);
+  }, [sessionId, loadProfiles]);
 
   useEffect(() => {
     let cancelled = false;
@@ -144,6 +160,7 @@ export default function App() {
           flow: result.events,
           createdAt: nowIso(),
         });
+        loadProfiles(result.sessionId);
       } catch (error) {
         const text = error instanceof Error ? error.message : "请求失败，请稍后再试。";
         appendMessage(activeSession, {
@@ -157,7 +174,7 @@ export default function App() {
         setPending(IDLE_PENDING);
       }
     },
-    [appendMessage, isSending, send, sessionId],
+    [appendMessage, isSending, send, sessionId, loadProfiles],
   );
 
   const handleNewSession = useCallback(() => {
@@ -189,6 +206,7 @@ export default function App() {
       <Sidebar
         sessionId={sessionId}
         conversations={conversations}
+        profiles={profiles}
         health={health}
         onNewSession={handleNewSession}
         onSelectSession={handleSelectSession}
@@ -233,7 +251,7 @@ export default function App() {
         />
       </section>
 
-      <RunFlowDrawer
+      <RunFlowModal
         open={runFlowOpen}
         turns={runFlowTurns}
         onClose={() => setRunFlowOpen(false)}

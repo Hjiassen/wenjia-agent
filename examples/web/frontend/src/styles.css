@@ -778,7 +778,63 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
-/* ---- Run-flow drawer + trigger ---- */
+/* ---- Person profiles panel (sidebar) ---- */
+
+.profile-list {
+  display: grid;
+  gap: 8px;
+}
+
+.profile-card {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 9px 11px;
+}
+
+.profile-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.profile-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-relation {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--teal-dark);
+  border: 1px solid var(--line);
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.profile-pillars {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.profiles-empty {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ---- Run-flow modal + trigger ---- */
 
 .chat-header-actions {
   display: flex;
@@ -852,23 +908,27 @@ button {
   opacity: 1;
 }
 
-.runflow-drawer {
+/* Large centered modal floating over the current screen. */
+.runflow-modal {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: 50%;
+  left: 50%;
   display: flex;
   flex-direction: column;
-  width: min(560px, 92vw);
-  height: 100%;
+  width: min(1120px, 94vw);
+  height: min(86vh, 900px);
   background: var(--paper);
-  border-left: 1px solid var(--line);
+  border: 1px solid var(--line);
+  border-radius: 14px;
   box-shadow: var(--shadow);
-  transform: translateX(100%);
-  transition: transform 0.24s ease;
+  transform: translate(-50%, -48%) scale(0.98);
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
-.runflow-root.is-open .runflow-drawer {
-  transform: translateX(0);
+.runflow-root.is-open .runflow-modal {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
 }
 
 .runflow-head {
@@ -876,7 +936,7 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px 20px;
+  padding: 18px 22px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -901,53 +961,66 @@ button {
 }
 
 .runflow-body {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  padding: 18px 20px 28px;
+  flex: 1 1 auto;
+  padding: 22px;
   overflow-y: auto;
 }
 
-.runflow-turn {
+/* Continuous head-to-tail chain that auto-wraps to fill the modal width. */
+.runflow-flow {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  padding: 14px;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 6px 0;
 }
 
-.runflow-turn.is-live {
-  border-color: rgba(45, 125, 115, 0.5);
-}
-
-.runflow-turn.is-error {
-  border-color: #e1aaa3;
-}
-
-.runflow-turn-title {
+.runflow-node {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 0;
-  font-size: 14px;
+}
+
+.runflow-connector {
+  flex: 0 0 auto;
+  padding: 0 7px;
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.runflow-turn-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+  min-width: 132px;
+  max-width: 168px;
+  border: 1px dashed var(--teal);
+  border-radius: 10px;
+  background: rgba(45, 125, 115, 0.07);
+  padding: 10px 12px;
+}
+
+.runflow-turn-chip.is-live {
+  border-style: solid;
+  border-color: var(--gold);
+}
+
+.runflow-turn-chip.is-error {
+  border-color: var(--rose);
 }
 
 .runflow-turn-index {
-  flex: 0 0 auto;
-  border-radius: 999px;
-  background: var(--teal-dark);
-  color: white;
-  padding: 2px 9px;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
   font-weight: 800;
+  color: var(--teal-dark);
 }
 
 .runflow-turn-prompt {
-  flex: 1 1 auto;
+  font-size: 12px;
   color: var(--muted);
-  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -68,3 +68,12 @@ export interface Conversation {
   updatedAt: string;
   messages: ChatMessage[];
 }
+
+export interface Profile {
+  id: number;
+  name: string;
+  relationship_type: string;
+  gender: string | null;
+  pillars: { year: string | null; month: string | null; day: string | null; hour: string | null };
+  five_elements: Record<string, number> | null;
+}

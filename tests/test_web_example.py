@@ -65,6 +65,33 @@ def test_web_chat_stream_uses_agent_stream(monkeypatch):
     asyncio.run(run_test())
 
 
+def test_web_profiles_endpoint(monkeypatch):
+    async def run_test() -> None:
+        monkeypatch.setattr(
+            "examples.web.app.profile_store.list_profiles",
+            lambda _session_id: [
+                {
+                    "id": 1,
+                    "name": "测试",
+                    "relationship_type": "本人",
+                    "gender": "未知",
+                    "pillars": {"year": "乙亥", "month": "辛巳", "day": "甲子", "hour": "己巳"},
+                    "five_elements": {"木": 2, "火": 2, "土": 2, "金": 1, "水": 1},
+                }
+            ],
+        )
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get("/api/profiles/web:abc")
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["session_id"] == "web:abc"
+        assert payload["profiles"][0]["relationship_type"] == "本人"
+
+    asyncio.run(run_test())
+
+
 def test_web_chat_uses_agent_runner(monkeypatch):
     async def fake_run_agent(session_id: str, message: str) -> str:
         assert session_id == "web:test"

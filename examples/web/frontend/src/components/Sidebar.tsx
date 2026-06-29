@@ -1,13 +1,19 @@
-import type { Conversation } from "../types";
+import type { Conversation, Profile } from "../types";
 import { conversationPreview, conversationTitle, formatTime } from "../lib/storage";
 
 const FLOW_GUIDE = ["理解问题", "检查出生信息", "路由专门 Agent", "调用确定性工具", "整理回答"];
+
+function pillarsText(profile: Profile): string {
+  const { year, month, day, hour } = profile.pillars;
+  return [year, month, day, hour].filter(Boolean).join(" ") || "—";
+}
 
 type HealthStatus = "checking" | "ready" | "error";
 
 interface SidebarProps {
   sessionId: string;
   conversations: Conversation[];
+  profiles: Profile[];
   health: HealthStatus;
   onNewSession: () => void;
   onSelectSession: (id: string) => void;
@@ -23,6 +29,7 @@ const HEALTH_TEXT: Record<HealthStatus, string> = {
 export function Sidebar({
   sessionId,
   conversations,
+  profiles,
   health,
   onNewSession,
   onSelectSession,
@@ -50,6 +57,25 @@ export function Sidebar({
           </button>
         </div>
         <p className="session-id">{sessionId.replace("web:", "")}</p>
+      </section>
+
+      <section className="panel profiles-panel">
+        <h2>人物档案</h2>
+        {profiles.length ? (
+          <div className="profile-list">
+            {profiles.map((profile) => (
+              <article className="profile-card" key={profile.id}>
+                <div className="profile-card-head">
+                  <span className="profile-name">{profile.name}</span>
+                  <span className="profile-relation">{profile.relationship_type}</span>
+                </div>
+                <p className="profile-pillars">{pillarsText(profile)}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="profiles-empty">完成排盘后，本人/父母档案会出现在这里。</p>
+        )}
       </section>
 
       <section className="panel history-panel">

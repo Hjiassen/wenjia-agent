@@ -58,6 +58,13 @@ async def health() -> dict[str, bool]:
     return {"ok": True}
 
 
+@app.get("/api/profiles/{session_id}")
+async def get_profiles(session_id: str) -> dict:
+    """Return person profiles (人物档案) saved for a conversation."""
+
+    return {"session_id": session_id, "profiles": profile_store.list_profiles(session_id)}
+
+
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(payload: ChatRequest) -> ChatResponse:
     """Run one Agent turn and return the final output."""
