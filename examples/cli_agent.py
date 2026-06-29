@@ -15,7 +15,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.runtime.runner import run_agent
 
 
+def _configure_stdout() -> None:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
+
 async def main() -> None:
+    _configure_stdout()
     session_id = f"wenjia:{uuid.uuid4()}"
     print("问甲 Agent CLI，输入 exit 退出。")
     while True:

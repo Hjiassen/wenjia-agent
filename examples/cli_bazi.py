@@ -11,7 +11,13 @@ from app.domain.bazi_adapter import BaziAdapter
 from app.domain.schemas import BirthInfo
 
 
+def _configure_stdout() -> None:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
+
 def main() -> None:
+    _configure_stdout()
     adapter = BaziAdapter()
     result = adapter.calculate(
         BirthInfo(

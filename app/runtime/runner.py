@@ -7,6 +7,7 @@ from agents.extensions.memory import SQLAlchemySession
 
 from app.agents.main_agent import main_agent
 from app.runtime.config import settings
+from app.runtime.models import build_run_config
 
 
 async def run_agent(session_id: str, message: str) -> str:
@@ -17,5 +18,10 @@ async def run_agent(session_id: str, message: str) -> str:
         url=settings.session_db_url,
         create_tables=True,
     )
-    result = await Runner.run(main_agent, message, session=session)
+    result = await Runner.run(
+        main_agent,
+        message,
+        session=session,
+        run_config=build_run_config(),
+    )
     return str(result.final_output)
