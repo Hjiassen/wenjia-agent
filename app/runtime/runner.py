@@ -28,7 +28,7 @@ async def run_agent(session_id: str, message: str) -> str:
             main_agent,
             message,
             session=session,
-            context=WenjiaRunContext(),
+            context=WenjiaRunContext(session_id=session_id),
             max_turns=MAX_TURNS,
             run_config=build_run_config(),
         )

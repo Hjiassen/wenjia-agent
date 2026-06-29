@@ -181,7 +181,7 @@ async def stream_agent_events(session_id: str, message: str) -> AsyncIterator[Fl
                 main_agent,
                 message,
                 session=session,
-                context=WenjiaRunContext(),
+                context=WenjiaRunContext(session_id=session_id),
                 max_turns=MAX_TURNS,
                 hooks=hooks,
                 run_config=build_run_config(),

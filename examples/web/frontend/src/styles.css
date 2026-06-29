@@ -473,6 +473,102 @@ button {
   border-color: #e1aaa3;
 }
 
+/* ---- Welcome guide (empty-state feature intro + prompts) ---- */
+
+.welcome-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(820px, 100%);
+}
+
+.welcome-intro h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  color: var(--teal-dark);
+}
+
+.welcome-intro p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.welcome-intro strong {
+  color: var(--teal-dark);
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.feature-card {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 12px;
+}
+
+.feature-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.feature-card h4 {
+  margin: 0 0 3px;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.feature-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.welcome-prompts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.welcome-prompts-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--teal-dark);
+}
+
+.prompt-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.prompt-chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 8px 14px;
+  font-size: 13px;
+  line-height: 1.3;
+  text-align: left;
+}
+
+.prompt-chip:hover {
+  border-color: var(--teal);
+  background: var(--surface-soft);
+}
+
 /* ---- Flow pipeline (card visualization) ---- */
 
 .flow-pipeline {
@@ -682,6 +778,187 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
+/* ---- Run-flow drawer + trigger ---- */
+
+.chat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.runflow-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--teal);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--teal-dark);
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.runflow-button:hover {
+  background: var(--surface-soft);
+}
+
+.runflow-button.is-live {
+  border-color: var(--gold);
+  color: var(--teal-dark);
+}
+
+.runflow-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--teal);
+  color: white;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.runflow-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--gold);
+  animation: stage-pulse 1.1s ease-in-out infinite;
+}
+
+.runflow-root {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.runflow-root.is-open {
+  pointer-events: auto;
+}
+
+.runflow-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(31, 42, 46, 0.32);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.runflow-root.is-open .runflow-overlay {
+  opacity: 1;
+}
+
+.runflow-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 92vw);
+  height: 100%;
+  background: var(--paper);
+  border-left: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  transform: translateX(100%);
+  transition: transform 0.24s ease;
+}
+
+.runflow-root.is-open .runflow-drawer {
+  transform: translateX(0);
+}
+
+.runflow-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.runflow-head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.runflow-close {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  width: 32px;
+  height: 32px;
+  font-size: 14px;
+}
+
+.runflow-close:hover {
+  border-color: var(--teal);
+  color: var(--teal-dark);
+}
+
+.runflow-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 18px 20px 28px;
+  overflow-y: auto;
+}
+
+.runflow-turn {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 14px;
+}
+
+.runflow-turn.is-live {
+  border-color: rgba(45, 125, 115, 0.5);
+}
+
+.runflow-turn.is-error {
+  border-color: #e1aaa3;
+}
+
+.runflow-turn-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.runflow-turn-index {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--teal-dark);
+  color: white;
+  padding: 2px 9px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.runflow-turn-prompt {
+  flex: 1 1 auto;
+  color: var(--muted);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.runflow-empty {
+  color: var(--muted);
+  font-size: 14px;
+  padding: 20px 4px;
+}
+
 .composer {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 92px;
@@ -749,6 +1026,10 @@ button {
 
   .chat-panel {
     min-height: 680px;
+  }
+
+  .feature-grid {
+    grid-template-columns: 1fr;
   }
 
   .flow-track {

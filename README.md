@@ -141,7 +141,10 @@ poetry run python examples/cli_agent.py
 
 ### Run the Web demo
 
-The Web demo provides a browser chat interface backed by the same Agent runner.
+The Web demo is a React + TypeScript (Vite) single-page app backed by the same
+Agent runner, rendering the run as a live card pipeline. The built frontend
+assets are committed under `examples/web/static/`, so you can **just start the
+backend**:
 
 Windows PowerShell:
 
@@ -160,6 +163,17 @@ Open:
 ```text
 http://127.0.0.1:8000
 ```
+
+To modify the frontend, rebuild it (output goes back to `examples/web/static/`):
+
+```bash
+cd examples/web/frontend
+npm install
+npm run build
+```
+
+For hot-reload development: `npm run dev` (proxies `/api` and `/health` to the
+backend on port 8000). See [examples/web/README.md](examples/web/README.md).
 
 ## Configuration
 

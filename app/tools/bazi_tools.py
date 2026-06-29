@@ -8,7 +8,10 @@ from app.core.city_data import get_cities, get_provinces
 from app.domain.context_builders import build_bazi_context
 from app.domain.bazi_adapter import BaziAdapter
 from app.domain.schemas import BaziResult, BirthInfo, ToolResult
+from app.runtime import profile_store
 from app.runtime.run_context import WenjiaRunContext
+
+PROFILE_RELATIONSHIPS = {"本人", "父亲", "母亲", "配偶", "孩子", "其他"}
 
 _adapter = BaziAdapter()
 
@@ -330,6 +333,129 @@ def build_bazi_context_tool(
     )
 
 
+def _run_context(ctx: RunContextWrapper[WenjiaRunContext] | None) -> WenjiaRunContext | None:
+    run_context = getattr(ctx, "context", None)
+    return run_context if isinstance(run_context, WenjiaRunContext) else None
+
+
+def _save_profile(
+    run_context: WenjiaRunContext | None,
+    relationship_type: str,
+    arguments: dict,
+) -> dict:
+    """Chart a person and persist them as a conversation profile.
+
+    Extracted from the tool wrapper so the ctx→session→persist path is unit
+    testable without constructing SDK tool-call plumbing.
+    """
+
+    relationship = relationship_type if relationship_type in PROFILE_RELATIONSHIPS else "本人"
+
+    built = build_bazi_context_data(**arguments)
+    if not built["ok"]:
+        return built
+
+    data = built.get("data") or {}
+    bazi = data.get("bazi") or {}
+    context = data.get("context") or {}
+
+    session_id = getattr(run_context, "session_id", None) if run_context else None
+    if not session_id:
+        # No session to attach to (e.g. a bare tool call) — chart only, do not persist.
+        return ToolResult(
+            ok=True,
+            tool_name="save_profile_tool",
+            data={"saved": False, "relationship_type": relationship, "context": context},
+            message="未提供会话标识，已完成排盘但未存档。",
+            warnings=built.get("warnings", []),
+        ).model_dump()
+
+    saved = profile_store.save_profile(
+        session_id=session_id,
+        relationship_type=relationship,
+        bazi=bazi,
+        context=context,
+    )
+    return ToolResult(
+        ok=True,
+        tool_name="save_profile_tool",
+        data={"saved": True, "profile": saved, "context": context},
+        warnings=built.get("warnings", []),
+    ).model_dump()
+
+
+@function_tool
+def save_profile_tool(
+    ctx: RunContextWrapper[WenjiaRunContext],
+    name: str,
+    gender: str,
+    birth_year: int,
+    birth_month: int,
+    birth_day: int,
+    birth_hour: int,
+    birth_minute: int = 0,
+    calendar_type: str = "solar",
+    is_leap_month: bool = False,
+    province: str | None = None,
+    city: str | None = None,
+    longitude: float | None = None,
+    relationship_type: str = "本人",
+) -> dict:
+    """Chart a person and save them as a conversation profile (人物档案).
+
+    Use after a complete birth profile is confirmed to persist 本人 / 父亲 / 母亲
+    etc., so later turns and the naming Agent can reuse their BaZi. Re-saving the
+    same person updates the existing record instead of duplicating it.
+    """
+
+    return _save_profile(
+        _run_context(ctx),
+        relationship_type,
+        dict(
+            name=name,
+            gender=gender,
+            birth_year=birth_year,
+            birth_month=birth_month,
+            birth_day=birth_day,
+            birth_hour=birth_hour,
+            birth_minute=birth_minute,
+            calendar_type=calendar_type,
+            is_leap_month=is_leap_month,
+            province=province,
+            city=city,
+            longitude=longitude,
+        ),
+    )
+
+
+def _list_profiles(run_context: WenjiaRunContext | None) -> dict:
+    session_id = getattr(run_context, "session_id", None) if run_context else None
+    if not session_id:
+        return ToolResult(
+            ok=True,
+            tool_name="list_profiles_tool",
+            data={"profiles": []},
+            message="未提供会话标识，无法读取档案。",
+        ).model_dump()
+
+    return ToolResult(
+        ok=True,
+        tool_name="list_profiles_tool",
+        data={"profiles": profile_store.list_profiles(session_id)},
+    ).model_dump()
+
+
+@function_tool
+def list_profiles_tool(ctx: RunContextWrapper[WenjiaRunContext]) -> dict:
+    """List person profiles already saved in the current conversation.
+
+    Use to reuse existing 本人/父母 profiles instead of re-asking for their
+    birth info, for example before generating naming suggestions.
+    """
+
+    return _list_profiles(_run_context(ctx))
+
+
 @function_tool
 def list_provinces_tool() -> dict:
     """List supported Chinese provinces/regions for birth place selection."""
@@ -348,6 +474,7 @@ BAZI_TOOLS = [
     validate_birth_info_tool,
     calculate_bazi_tool,
     build_bazi_context_tool,
+    list_profiles_tool,
     list_provinces_tool,
     list_cities_tool,
 ]
@@ -355,10 +482,24 @@ BAZI_TOOLS = [
 # ProfileAgent collects birth info and charts once. It deliberately omits
 # ``calculate_bazi_tool`` so the model has a single charting path
 # (``build_bazi_context_tool`` already includes the four-pillar calculation),
-# which removes the back-and-forth that caused the max-turns loop.
+# which removes the back-and-forth that caused the max-turns loop. It saves the
+# charted person as a 本人 profile via ``save_profile_tool``.
 PROFILE_TOOLS = [
     validate_birth_info_tool,
     build_bazi_context_tool,
+    save_profile_tool,
+    list_profiles_tool,
+    list_provinces_tool,
+    list_cities_tool,
+]
+
+# NamingAgent charts the subject plus optional parents (saved as 父亲/母亲
+# profiles) and reuses any already-stored profiles in the conversation.
+NAMING_TOOLS = [
+    validate_birth_info_tool,
+    build_bazi_context_tool,
+    save_profile_tool,
+    list_profiles_tool,
     list_provinces_tool,
     list_cities_tool,
 ]

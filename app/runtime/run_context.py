@@ -20,6 +20,7 @@ REPEAT_TOOL_NOTE = "排盘结果已生成，请直接基于现有结果输出或
 class WenjiaRunContext:
     """Per-run state passed to ``Runner.run`` / ``Runner.run_streamed``."""
 
+    session_id: str | None = None
     tool_cache: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def cache_key(self, tool_name: str, arguments: dict[str, Any]) -> str:

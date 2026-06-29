@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { MessageList } from "./components/MessageList";
 import { Composer } from "./components/Composer";
+import { RunFlowDrawer, type RunFlowTurn } from "./components/RunFlowDrawer";
 import { useChatStream } from "./hooks/useChatStream";
 import type { ChatMessage, Conversation, FlowEvent } from "./types";
 import {
@@ -41,6 +42,7 @@ export default function App() {
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState<PendingState>(IDLE_PENDING);
   const [health, setHealth] = useState<HealthStatus>("checking");
+  const [runFlowOpen, setRunFlowOpen] = useState(false);
   const { send, isSending } = useChatStream();
 
   useEffect(() => {
@@ -69,6 +71,29 @@ export default function App() {
   const currentMessages = useMemo<ChatMessage[]>(() => {
     return conversations.find((item) => item.id === sessionId)?.messages ?? [];
   }, [conversations, sessionId]);
+
+  // One run-flow turn per assistant reply, labelled by the user prompt that
+  // triggered it; the in-progress reply is appended as a live turn.
+  const runFlowTurns = useMemo<RunFlowTurn[]>(() => {
+    const turns: RunFlowTurn[] = [];
+    let lastPrompt = "";
+    currentMessages.forEach((message, index) => {
+      if (message.role === "user") {
+        lastPrompt = message.body;
+        return;
+      }
+      turns.push({
+        id: `turn-${index}`,
+        prompt: lastPrompt,
+        events: message.flow,
+        error: message.type === "error",
+      });
+    });
+    if (pending.active) {
+      turns.push({ id: "turn-live", prompt: lastPrompt, events: pending.events, live: true });
+    }
+    return turns;
+  }, [currentMessages, pending]);
 
   const appendMessage = useCallback(
     (targetId: string, message: ChatMessage) => {
@@ -168,7 +193,6 @@ export default function App() {
         onNewSession={handleNewSession}
         onSelectSession={handleSelectSession}
         onClearHistory={handleClearHistory}
-        onPickPrompt={(prompt) => setDraft(prompt)}
       />
 
       <section className="chat-panel" aria-label="Agent 对话">
@@ -177,12 +201,29 @@ export default function App() {
             <p className="eyebrow">Agent 工作台</p>
             <h2>命盘、分析、起名与推演过程</h2>
           </div>
-          <a href="/docs" target="_blank" rel="noreferrer">
-            接口文档
-          </a>
+          <div className="chat-header-actions">
+            <button
+              type="button"
+              className={`runflow-button ${isSending ? "is-live" : ""}`.trim()}
+              onClick={() => setRunFlowOpen(true)}
+            >
+              {isSending ? <span className="runflow-live-dot" aria-hidden /> : null}
+              查看运行流
+              {runFlowTurns.length ? (
+                <span className="runflow-badge">{runFlowTurns.length}</span>
+              ) : null}
+            </button>
+            <a href="/docs" target="_blank" rel="noreferrer">
+              接口文档
+            </a>
+          </div>
         </header>
 
-        <MessageList messages={currentMessages} pending={pending} />
+        <MessageList
+          messages={currentMessages}
+          pending={pending}
+          onPickPrompt={handleSubmit}
+        />
 
         <Composer
           disabled={isSending}
@@ -191,6 +232,12 @@ export default function App() {
           onSubmit={handleSubmit}
         />
       </section>
+
+      <RunFlowDrawer
+        open={runFlowOpen}
+        turns={runFlowTurns}
+        onClose={() => setRunFlowOpen(false)}
+      />
     </main>
   );
 }

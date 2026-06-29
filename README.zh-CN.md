@@ -137,7 +137,7 @@ poetry run python examples/cli_agent.py
 
 ### 运行 Web Demo
 
-Web Demo 提供浏览器聊天界面，后端复用同一个 Agent runner。
+Web Demo 是 React + TypeScript（Vite）单页应用，后端复用同一个 Agent runner，并把运行过程渲染成实时卡片流水线。前端构建产物已随仓库提交到 `examples/web/static/`，因此**直接启动后端即可**：
 
 Windows PowerShell:
 
@@ -156,6 +156,16 @@ poetry run uvicorn examples.web.app:app --reload --host 127.0.0.1 --port 8000
 ```text
 http://127.0.0.1:8000
 ```
+
+如需修改前端，先重新构建（产物输出回 `examples/web/static/`）：
+
+```bash
+cd examples/web/frontend
+npm install
+npm run build
+```
+
+前端热更新开发：`npm run dev`（自动把 `/api`、`/health` 代理到 8000 端口的后端）。详见 [examples/web/README.md](examples/web/README.md)。
 
 ## 配置
 

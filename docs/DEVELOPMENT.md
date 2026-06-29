@@ -28,7 +28,7 @@ poetry run python examples\cli_agent.py
 
 ## 运行 Web Demo
 
-先在 `.env` 填写 `OPENAI_API_KEY`，然后运行：
+Web Demo 是 React + TypeScript（Vite）单页应用，构建产物已提交到 `examples/web/static/`。先在 `.env` 填写 `OPENAI_API_KEY`，然后直接启动后端：
 
 ```powershell
 poetry run uvicorn examples.web.app:app --reload --host 127.0.0.1 --port 8000
@@ -39,6 +39,16 @@ poetry run uvicorn examples.web.app:app --reload --host 127.0.0.1 --port 8000
 ```text
 http://127.0.0.1:8000
 ```
+
+修改前端后重新构建（产物输出回 `examples/web/static/`）：
+
+```bash
+cd examples/web/frontend
+npm install
+npm run build
+```
+
+热更新开发用 `npm run dev`（代理 `/api`、`/health` 到 8000 端口）。
 
 ## 测试
 

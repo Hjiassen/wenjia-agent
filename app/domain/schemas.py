@@ -169,6 +169,10 @@ class NamingReport(BaseModel):
     report_title: str
     profile_name: str
     element_strategy: list[str] = Field(default_factory=list)
+    parent_references: list[str] = Field(
+        default_factory=list,
+        description="可选：参与起名参考的父母八字摘要，如『父亲 甲子 乙丑 丙寅 丁卯』。",
+    )
     suggestions: list[NamingSuggestion] = Field(default_factory=list)
     screening_checklist: list[str] = Field(default_factory=list)
     boundary_note: str = "起名建议仅作文化审美与命理参考，最终应结合家庭偏好与现实使用场景。"
