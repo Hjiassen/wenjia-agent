@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import pytest
 
 from app.runtime import profile_store
@@ -108,3 +110,28 @@ def test_save_profile_helper_degrades_without_session(temp_db):
     assert result["ok"] is True
     assert result["data"]["saved"] is False
     assert profile_store.list_profiles("web:tool") == []
+
+
+def test_autosave_subject_persists_on_successful_chart(temp_db):
+    from app.tools.bazi_tools import _autosave_subject, build_bazi_context_data
+
+    built = build_bazi_context_data(**_birth_args())
+    ctx = SimpleNamespace(context=WenjiaRunContext(session_id="web:auto"))
+
+    _autosave_subject(ctx, built)  # type: ignore[arg-type]
+
+    profiles = profile_store.list_profiles("web:auto")
+    assert len(profiles) == 1
+    assert profiles[0]["relationship_type"] == "本人"
+
+
+def test_autosave_subject_skips_cached_results(temp_db):
+    from app.tools.bazi_tools import _autosave_subject, build_bazi_context_data
+
+    built = build_bazi_context_data(**_birth_args())
+    cached = {**built, "from_cache": True}
+    ctx = SimpleNamespace(context=WenjiaRunContext(session_id="web:auto"))
+
+    _autosave_subject(ctx, cached)  # type: ignore[arg-type]
+
+    assert profile_store.list_profiles("web:auto") == []

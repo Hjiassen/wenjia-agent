@@ -312,7 +312,7 @@ def build_bazi_context_tool(
 ) -> dict:
     """Build a deterministic BaZi context package for report-style Agents."""
 
-    return _dedup_charting(
+    result = _dedup_charting(
         ctx,
         "build_bazi_context_tool",
         dict(
@@ -331,6 +331,30 @@ def build_bazi_context_tool(
         ),
         build_bazi_context_data,
     )
+    # Persist the charted subject deterministically so a profile always lands in
+    # the DB without depending on the model to call ``save_profile_tool``.
+    _autosave_subject(ctx, result)
+    return result
+
+
+def _autosave_subject(ctx: RunContextWrapper[WenjiaRunContext] | None, result: dict) -> None:
+    """Best-effort 本人 persistence on a successful, freshly-computed chart."""
+
+    if not isinstance(result, dict) or not result.get("ok") or result.get("from_cache"):
+        return
+    run_context = getattr(ctx, "context", None)
+    session_id = getattr(run_context, "session_id", None) if run_context else None
+    if not session_id:
+        return
+    data = result.get("data") or {}
+    bazi = data.get("bazi") or {}
+    context = data.get("context") or {}
+    if not bazi or not context:
+        return
+    try:
+        profile_store.save_profile(session_id, "本人", bazi, context)
+    except Exception:  # noqa: BLE001 - persistence is best-effort, never break charting.
+        pass
 
 
 def _run_context(ctx: RunContextWrapper[WenjiaRunContext] | None) -> WenjiaRunContext | None:

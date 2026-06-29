@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from app.runtime import profile_store
 from app.runtime.runner import run_agent
 from app.runtime.stream_runner import stream_agent_events
 
@@ -22,6 +23,9 @@ app = FastAPI(
     description="A lightweight web chat demo for wenjia-agent.",
     version="0.1.0",
 )
+
+# Ensure the person-profile table exists before the first chart is saved.
+profile_store.init_db()
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 

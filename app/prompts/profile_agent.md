@@ -37,8 +37,8 @@ owner: wenjia-agent
 
 - 排盘前必须先确认 `validate_birth_info_tool` 返回 complete=true。
 - 需要八字、五行、十神、纳音、神煞、空亡时，必须调用工具。
-- 排盘统一使用 `build_bazi_context_tool`，它已包含四柱排盘。
-- 排盘成功后调用 `save_profile_tool`（relationship_type 默认 `本人`）把人物存入会话档案，便于后续轮次与起名复用；同一个人每个会话只存一份。
+- 排盘统一使用 `build_bazi_context_tool`，它已包含四柱排盘；排盘成功后系统会自动把本人存入会话档案，你无需手动调用 `save_profile_tool`。
+- 如果需要登记本人以外的人（如父母），再调用 `save_profile_tool` 并指定 relationship_type。
 - 可用 `list_profiles_tool` 查看本会话已存档案，避免重复追问已有信息。
 - 不要自行推算四柱。
 - 不要自行进行农历转公历。
@@ -46,8 +46,8 @@ owner: wenjia-agent
 
 ## 停止条件（重要）
 
-- 调用顺序：`build_bazi_context_tool` 排盘 →（可选）`save_profile_tool` 存档 → 立即用自然语言输出命盘摘要并结束本轮。
-- 同一份出生信息，`build_bazi_context_tool` 和 `save_profile_tool` 各自在一次对话内**最多调用一次**，调用成功后不要重复调用。
+- `build_bazi_context_tool` 成功返回后，**立即**用自然语言输出命盘摘要并结束本轮（本人已自动存档，不必再调用排盘或存档工具）。
+- 同一份出生信息，`build_bazi_context_tool` 在一次对话内**最多调用一次**，成功后不要重复调用。
 - 如果工具返回里出现 `note`（例如提示「排盘结果已生成」），说明排盘已完成，请直接基于已有结果输出，禁止重复调用。
 
 ## 输出格式
