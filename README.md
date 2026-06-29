@@ -14,7 +14,8 @@ Open-source Chinese metaphysics Agents powered by the OpenAI Agents SDK.
 
 ## Overview
 
-`wenjia-agent` is an open-source Agent project for Chinese metaphysics scenarios.
+The name `wenjia` means “问甲”. `wenjia-agent` is an open-source Agent project
+for Chinese metaphysics scenarios.
 It combines deterministic BaZi calculation, OpenAI Agents SDK orchestration,
 function tools, session memory, structured reports, and prompt templates into a
 lightweight Python project.

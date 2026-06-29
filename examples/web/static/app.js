@@ -3,7 +3,7 @@ const legacySessionKey = "wenjia-agent-web-session";
 const conversationsKey = "wenjia-agent-web-conversations";
 
 const welcomeText =
-  "你好，我是文甲 Agent。你可以先提交完整出生信息，也可以直接选择左侧推荐问题开始。涉及个人命盘、流年、关系或起名时，我会先确认出生信息是否完整。";
+  "你好，我是问甲 Agent。你可以先提交完整出生信息，也可以直接选择左侧推荐问题开始。涉及个人命盘、流年、关系或起名时，我会先确认出生信息是否完整。";
 
 const messages = document.querySelector("#messages");
 const chatForm = document.querySelector("#chatForm");
@@ -140,7 +140,7 @@ function appendMessage(role, body, type = "") {
 
   const roleNode = document.createElement("div");
   roleNode.className = "message-role";
-  roleNode.textContent = role === "user" ? "你" : "文甲";
+  roleNode.textContent = role === "user" ? "你" : "问甲";
 
   const bodyNode = document.createElement("div");
   bodyNode.className = "message-body";

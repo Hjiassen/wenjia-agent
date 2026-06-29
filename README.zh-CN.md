@@ -14,7 +14,7 @@
 
 ## 项目简介
 
-`wenjia-agent` 面向中文命理场景，将确定性八字计算、OpenAI Agents SDK
+`wenjia` 取“问甲”之意。`wenjia-agent` 面向中文命理场景，将确定性八字计算、OpenAI Agents SDK
 编排、function tools、会话记忆、结构化报告和 Prompt 模板组织成一个轻量、
 可扩展的 Python 工程。
 

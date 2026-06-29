@@ -13,7 +13,7 @@ def test_web_index_and_health():
             health_response = await client.get("/health")
 
         assert index_response.status_code == 200
-        assert "文甲 Agent" in index_response.text
+        assert "问甲 Agent" in index_response.text
         assert "推荐问题" in index_response.text
         assert "历史记录" in index_response.text
         assert health_response.json() == {"ok": True}
