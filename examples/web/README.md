@@ -2,9 +2,9 @@
 
 This example provides a lightweight Chinese browser chat UI for `wenjia-agent`.
 It supports multi-turn chat, local conversation history, preset recommended
-questions, and SSE-based Agent flow visualization. Agent context is keyed by
-`session_id`, while the visible chat history is stored in the browser's
-`localStorage`.
+questions, Markdown-rendered assistant messages, and SSE-based Agent flow
+visualization. Agent context is keyed by `session_id`, while the visible chat
+history is stored in the browser's `localStorage`.
 
 ## Run
 

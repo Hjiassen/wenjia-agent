@@ -5,6 +5,8 @@ const conversationsKey = "wenjia-agent-web-conversations";
 const welcomeText =
   "你好，我是问甲 Agent。你可以先提交完整出生信息，也可以直接选择左侧推荐问题开始。涉及个人命盘、流年、关系或起名时，我会先确认出生信息是否完整。";
 
+const markdownRenderer = window.WenjiaMarkdown;
+
 const messages = document.querySelector("#messages");
 const chatForm = document.querySelector("#chatForm");
 const messageInput = document.querySelector("#messageInput");
@@ -134,6 +136,23 @@ function updateSessionLabel() {
   sessionIdLabel.textContent = sessionId.replace("web:", "");
 }
 
+function setMessageBody(bodyNode, role, body) {
+  bodyNode.classList.toggle("markdown-body", role === "assistant");
+  if (role === "assistant" && markdownRenderer?.renderMarkdown) {
+    bodyNode.innerHTML = markdownRenderer.renderMarkdown(body);
+    return;
+  }
+  bodyNode.textContent = body;
+}
+
+function setAssistantMessageBody(article, body) {
+  const bodyNode = article.querySelector(".message-body");
+  if (!bodyNode) {
+    return;
+  }
+  setMessageBody(bodyNode, "assistant", body);
+}
+
 function appendMessage(role, body, type = "", flowSteps = []) {
   const article = document.createElement("article");
   article.className = `message ${role} ${type}`.trim();
@@ -144,7 +163,7 @@ function appendMessage(role, body, type = "", flowSteps = []) {
 
   const bodyNode = document.createElement("div");
   bodyNode.className = "message-body";
-  bodyNode.textContent = body;
+  setMessageBody(bodyNode, role, body);
 
   article.append(roleNode);
   if (role === "assistant") {
@@ -341,12 +360,12 @@ async function sendMessage(message) {
 
   try {
     const finalOutput = await streamMessage(message, flowSteps, pending);
-    pending.querySelector(".message-body").textContent = finalOutput;
+    setAssistantMessageBody(pending, finalOutput);
     saveMessage("assistant", finalOutput, "", flowSteps);
   } catch (error) {
     const text = error.message || "请求失败，请稍后再试。";
     pending.classList.add("error");
-    pending.querySelector(".message-body").textContent = text;
+    setAssistantMessageBody(pending, text);
     saveMessage("assistant", text, "error", flowSteps);
   } finally {
     setSending(false);
@@ -406,7 +425,7 @@ async function streamMessage(message, flowSteps, pending) {
         throw new Error(event.message || "Agent 请求失败。");
       }
 
-      pending.querySelector(".message-body").textContent = getFlowStepText(event);
+      setAssistantMessageBody(pending, getFlowStepText(event));
     }
   }
 
