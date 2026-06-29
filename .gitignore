@@ -17,3 +17,10 @@ venv/
 dist/
 build/
 *.egg-info/
+
+# Web demo React frontend
+examples/web/frontend/node_modules/
+examples/web/frontend/dist/
+examples/web/frontend/*.tsbuildinfo
+examples/web/frontend/vite.config.js
+examples/web/frontend/vite.config.d.ts

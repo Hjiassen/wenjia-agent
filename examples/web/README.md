@@ -1,10 +1,25 @@
 # wenjia-agent Web Demo
 
-This example provides a lightweight Chinese browser chat UI for `wenjia-agent`.
-It supports multi-turn chat, local conversation history, preset recommended
-questions, Markdown-rendered assistant messages, and SSE-based Agent flow
-visualization. Agent context is keyed by `session_id`, while the visible chat
-history is stored in the browser's `localStorage`.
+This example provides a Chinese browser chat UI for `wenjia-agent`, built with
+**React + TypeScript (Vite)**. It supports multi-turn chat, local conversation
+history, preset recommended questions, Markdown-rendered assistant messages, and
+a real-time **card-pipeline visualization** of the Agent flow driven by SSE
+events. Agent context is keyed by `session_id`, while the visible chat history is
+stored in the browser's `localStorage`.
+
+## Frontend (build once)
+
+The React source lives in `examples/web/frontend/` and builds into
+`examples/web/static/`, which FastAPI serves. Build it before running the server:
+
+```bash
+cd examples/web/frontend
+npm install
+npm run build
+```
+
+For frontend development with hot reload, run `npm run dev` (it proxies `/api`
+and `/health` to a FastAPI server on port 8000).
 
 ## Run
 

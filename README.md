@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/assets/wenjia-mark.svg" alt="wenjia-agent" width="96" height="96" />
+
 # wenjia-agent
 
 Open-source Chinese metaphysics Agents powered by the OpenAI Agents SDK.

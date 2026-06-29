@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/assets/wenjia-mark.svg" alt="wenjia-agent" width="96" height="96" />
+
 # wenjia-agent
 
 基于 OpenAI Agents SDK 的开源中文命理 Agent 项目。

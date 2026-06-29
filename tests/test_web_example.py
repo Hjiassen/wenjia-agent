@@ -11,17 +11,14 @@ def test_web_index_and_health():
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
             index_response = await client.get("/")
             health_response = await client.get("/health")
-            markdown_response = await client.get("/static/markdown.js")
 
+        # The UI is now a built React SPA: index.html is a minimal shell that
+        # mounts into #root and loads hashed assets from /static/assets/.
         assert index_response.status_code == 200
         assert "问甲 Agent" in index_response.text
-        assert "推荐问题" in index_response.text
-        assert "历史记录" in index_response.text
-        assert "推演流程" in index_response.text
-        assert "/static/markdown.js" in index_response.text
+        assert '<div id="root">' in index_response.text
+        assert "/static/assets/" in index_response.text
         assert health_response.json() == {"ok": True}
-        assert markdown_response.status_code == 200
-        assert "renderMarkdown" in markdown_response.text
 
     asyncio.run(run_test())
 
