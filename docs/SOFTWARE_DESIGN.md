@@ -50,9 +50,25 @@ agents -> tools -> domain -> core
 关键工具：
 
 - `calculate_bazi_tool`
+- `validate_birth_info_tool`
 - `build_bazi_context_tool`
 - `list_provinces_tool`
 - `list_cities_tool`
+
+## 出生信息门禁
+
+所有个性化命理请求在排盘或分析前都需要确认完整出生信息。完整信息包括：
+
+- 姓名或展示名
+- 性别
+- 出生年、月、日、小时、分钟
+- 历法类型：公历或农历
+- 出生地省市或出生地经度
+- 农历日期需确认是否闰月
+
+Agent 在处理排盘、命格分析、合盘、起名和个性化建议前，应先调用或参考
+`validate_birth_info_tool`。如果缺少任一字段，只返回缺失字段追问，不进入
+排盘、分析或报告生成流程。
 
 ## 命盘上下文
 

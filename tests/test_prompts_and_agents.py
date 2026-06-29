@@ -26,6 +26,22 @@ def test_prompt_templates_load_and_are_active():
         assert "MVP 暂未启用" not in prompt
 
 
+def test_prompts_enforce_birth_info_gate():
+    gated_prompt_files = [
+        "main_agent.md",
+        "profile_agent.md",
+        "fortune_analysis.md",
+        "relationship_agent.md",
+        "naming_agent.md",
+        "mystic_tools_agent.md",
+    ]
+
+    for prompt_file in gated_prompt_files:
+        prompt = load_prompt(prompt_file)
+        assert "validate_birth_info_tool" in prompt
+        assert "完整出生信息" in prompt
+
+
 def test_main_agent_has_specialist_handoffs():
     handoff_names = {agent.name for agent in main_agent.handoffs}
 

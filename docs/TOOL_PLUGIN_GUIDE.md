@@ -12,6 +12,7 @@
 
 ## 当前工具
 
+- `validate_birth_info_tool`：检查个性化命理请求所需的出生信息是否完整。
 - `calculate_bazi_tool`：返回四柱、真太阳时、五行、十神、纳音、神煞、空亡等确定性结果。
 - `build_bazi_context_tool`：在排盘结果上整理 Agent 分析上下文。
 - `list_provinces_tool`：查询支持的省份/地区。

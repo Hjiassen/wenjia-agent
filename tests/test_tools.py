@@ -3,6 +3,7 @@ from app.tools.bazi_tools import (
     calculate_bazi,
     list_cities,
     list_provinces,
+    validate_birth_info,
 )
 
 
@@ -58,3 +59,37 @@ def test_city_tools_data_shape():
     assert "北京市" in provinces["data"]["provinces"]
     assert cities["ok"] is True
     assert "北京市" in cities["data"]["cities"]
+
+
+def test_validate_birth_info_requires_complete_birth_profile():
+    result = validate_birth_info(
+        name="测试",
+        birth_year=1995,
+        birth_month=5,
+        birth_day=12,
+    )
+
+    assert result["ok"] is False
+    assert result["tool_name"] == "validate_birth_info"
+    assert "性别" in result["data"]["missing_fields"]
+    assert "出生小时" in result["data"]["missing_fields"]
+    assert "出生地（省市）或出生地经度" in result["data"]["missing_fields"]
+
+
+def test_validate_birth_info_accepts_complete_birth_profile():
+    result = validate_birth_info(
+        name="测试",
+        gender="未知",
+        birth_year=1995,
+        birth_month=5,
+        birth_day=12,
+        birth_hour=9,
+        birth_minute=30,
+        calendar_type="solar",
+        province="北京市",
+        city="北京市",
+    )
+
+    assert result["ok"] is True
+    assert result["data"]["complete"] is True
+    assert result["data"]["missing_fields"] == []

@@ -40,6 +40,7 @@ report generation.
 | Feature | Description |
 | --- | --- |
 | Multi-agent workflow | A main routing Agent delegates work to specialized Agents. |
+| Birth info gate | Personalized metaphysics requests must provide a complete birth profile before analysis. |
 | Deterministic BaZi core | BaZi pillars, true solar time, five elements, ten gods, NaYin, ShenSha, KongWang, and life-palace fields are calculated locally. |
 | Tool-first reasoning | Agents retrieve chart data through function tools instead of inferring key metaphysics fields directly. |
 | Structured outputs | Fortune, relationship, and naming reports are constrained by Pydantic schemas. |
@@ -245,6 +246,10 @@ generation:
 Key metaphysics fields must come from tools. Agents may explain tool results
 and organize reports, but they should not invent BaZi pillars, five elements,
 ten gods, or ShenSha data.
+
+Personalized charting, fortune analysis, relationship analysis, naming, and
+advice requests are gated by complete birth information. If required fields are
+missing, Agents keep asking for the missing fields before continuing.
 
 ## Development
 
