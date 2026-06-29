@@ -37,10 +37,16 @@ owner: wenjia-agent
 
 - 排盘前必须先确认 `validate_birth_info_tool` 返回 complete=true。
 - 需要八字、五行、十神、纳音、神煞、空亡时，必须调用工具。
+- 排盘统一使用 `build_bazi_context_tool`，它已包含四柱排盘。
 - 不要自行推算四柱。
 - 不要自行进行农历转公历。
 - 不要忽略工具 warning。
-- 需要给后续分析 Agent 使用时，优先调用 `build_bazi_context_tool`。
+
+## 停止条件（重要）
+
+- `build_bazi_context_tool` 成功返回后，**立即**用自然语言输出命盘摘要并结束本轮，不要再调用任何排盘工具。
+- 同一份出生信息，`build_bazi_context_tool` 在一次对话内**最多调用一次**。
+- 如果工具返回里出现 `note`（例如提示「排盘结果已生成」），说明排盘已完成，请直接基于已有结果输出，禁止重复调用。
 
 ## 输出格式
 

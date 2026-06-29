@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from agents import function_tool
+from agents import RunContextWrapper, function_tool
 
 from app.core.city_data import get_cities, get_provinces
 from app.domain.context_builders import build_bazi_context
 from app.domain.bazi_adapter import BaziAdapter
 from app.domain.schemas import BaziResult, BirthInfo, ToolResult
+from app.runtime.run_context import WenjiaRunContext
 
 _adapter = BaziAdapter()
 
@@ -228,8 +229,28 @@ def validate_birth_info_tool(
     )
 
 
+def _dedup_charting(
+    ctx: RunContextWrapper[WenjiaRunContext] | None,
+    tool_name: str,
+    arguments: dict,
+    compute,
+) -> dict:
+    """Memoize a deterministic charting tool per run to prevent identical re-calls."""
+
+    run_context = getattr(ctx, "context", None)
+    if not isinstance(run_context, WenjiaRunContext):
+        return compute(**arguments)
+
+    key = run_context.cache_key(tool_name, arguments)
+    cached = run_context.cached_result(key)
+    if cached is not None:
+        return cached
+    return run_context.store_result(key, compute(**arguments))
+
+
 @function_tool
 def calculate_bazi_tool(
+    ctx: RunContextWrapper[WenjiaRunContext],
     name: str,
     gender: str,
     birth_year: int,
@@ -249,24 +270,30 @@ def calculate_bazi_tool(
     true solar time are needed. Never infer these values directly in the model.
     """
 
-    return calculate_bazi(
-        name=name,
-        gender=gender,
-        birth_year=birth_year,
-        birth_month=birth_month,
-        birth_day=birth_day,
-        birth_hour=birth_hour,
-        birth_minute=birth_minute,
-        calendar_type=calendar_type,
-        is_leap_month=is_leap_month,
-        province=province,
-        city=city,
-        longitude=longitude,
+    return _dedup_charting(
+        ctx,
+        "calculate_bazi_tool",
+        dict(
+            name=name,
+            gender=gender,
+            birth_year=birth_year,
+            birth_month=birth_month,
+            birth_day=birth_day,
+            birth_hour=birth_hour,
+            birth_minute=birth_minute,
+            calendar_type=calendar_type,
+            is_leap_month=is_leap_month,
+            province=province,
+            city=city,
+            longitude=longitude,
+        ),
+        calculate_bazi,
     )
 
 
 @function_tool
 def build_bazi_context_tool(
+    ctx: RunContextWrapper[WenjiaRunContext],
     name: str,
     gender: str,
     birth_year: int,
@@ -282,19 +309,24 @@ def build_bazi_context_tool(
 ) -> dict:
     """Build a deterministic BaZi context package for report-style Agents."""
 
-    return build_bazi_context_data(
-        name=name,
-        gender=gender,
-        birth_year=birth_year,
-        birth_month=birth_month,
-        birth_day=birth_day,
-        birth_hour=birth_hour,
-        birth_minute=birth_minute,
-        calendar_type=calendar_type,
-        is_leap_month=is_leap_month,
-        province=province,
-        city=city,
-        longitude=longitude,
+    return _dedup_charting(
+        ctx,
+        "build_bazi_context_tool",
+        dict(
+            name=name,
+            gender=gender,
+            birth_year=birth_year,
+            birth_month=birth_month,
+            birth_day=birth_day,
+            birth_hour=birth_hour,
+            birth_minute=birth_minute,
+            calendar_type=calendar_type,
+            is_leap_month=is_leap_month,
+            province=province,
+            city=city,
+            longitude=longitude,
+        ),
+        build_bazi_context_data,
     )
 
 
@@ -315,6 +347,17 @@ def list_cities_tool(province: str) -> dict:
 BAZI_TOOLS = [
     validate_birth_info_tool,
     calculate_bazi_tool,
+    build_bazi_context_tool,
+    list_provinces_tool,
+    list_cities_tool,
+]
+
+# ProfileAgent collects birth info and charts once. It deliberately omits
+# ``calculate_bazi_tool`` so the model has a single charting path
+# (``build_bazi_context_tool`` already includes the four-pillar calculation),
+# which removes the back-and-forth that caused the max-turns loop.
+PROFILE_TOOLS = [
+    validate_birth_info_tool,
     build_bazi_context_tool,
     list_provinces_tool,
     list_cities_tool,

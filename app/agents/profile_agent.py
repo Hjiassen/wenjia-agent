@@ -6,7 +6,7 @@ from agents import Agent
 
 from app.prompts import load_prompt
 from app.runtime.config import settings
-from app.tools.bazi_tools import BAZI_TOOLS
+from app.tools.bazi_tools import PROFILE_TOOLS
 
 
 profile_agent = Agent(
@@ -14,5 +14,5 @@ profile_agent = Agent(
     handoff_description="用于收集出生资料、查询出生地、完成确定性八字排盘。",
     instructions=load_prompt("profile_agent.md"),
     model=settings.openai_agent_model,
-    tools=BAZI_TOOLS,
+    tools=PROFILE_TOOLS,
 )

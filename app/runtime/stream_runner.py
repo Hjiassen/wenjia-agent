@@ -8,11 +8,13 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from agents import Runner
+from agents.exceptions import MaxTurnsExceeded
 from agents.extensions.memory import SQLAlchemySession
 from agents.lifecycle import RunHooksBase
 
 from app.agents.main_agent import main_agent
 from app.runtime.config import settings
+from app.runtime.run_context import WenjiaRunContext
 from app.runtime.flow_events import (
     compact_error_message,
     get_agent_display_name,
@@ -26,6 +28,8 @@ from app.runtime.models import build_run_config
 
 FlowEvent = dict[str, Any]
 _QUEUE_SENTINEL = object()
+MAX_TURNS = 16
+_MAX_TURNS_MESSAGE = "推演步骤过多已中止，请补充更完整的信息或简化问题后重试。"
 
 
 class FlowEventEmitter:
@@ -177,6 +181,8 @@ async def stream_agent_events(session_id: str, message: str) -> AsyncIterator[Fl
                 main_agent,
                 message,
                 session=session,
+                context=WenjiaRunContext(),
+                max_turns=MAX_TURNS,
                 hooks=hooks,
                 run_config=build_run_config(),
             )
@@ -190,6 +196,14 @@ async def stream_agent_events(session_id: str, message: str) -> AsyncIterator[Fl
                     "success": True,
                     "content": str(result.final_output),
                     "message": "推演完成。",
+                }
+            )
+        except MaxTurnsExceeded:
+            await emitter.emit(
+                {
+                    "type": "error",
+                    "success": False,
+                    "message": _MAX_TURNS_MESSAGE,
                 }
             )
         except Exception as exc:  # noqa: BLE001 - stream boundary.
