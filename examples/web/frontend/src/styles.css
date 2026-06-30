@@ -641,9 +641,20 @@ button {
 }
 
 .stage-card.kind-start,
-.stage-card.kind-done {
-  width: 150px;
-  min-width: 150px;
+.stage-card.kind-done,
+.stage-card.kind-verify,
+.stage-card.kind-revise {
+  width: 160px;
+  min-width: 160px;
+}
+
+.stage-card.kind-verify {
+  background: rgba(45, 125, 115, 0.06);
+}
+
+.stage-card.kind-revise {
+  background: rgba(201, 154, 46, 0.08);
+  border-color: var(--gold);
 }
 
 .stage-card-head {

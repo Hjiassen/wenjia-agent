@@ -28,6 +28,7 @@ export function buildPipeline(events: FlowEvent[]): FlowStage[] {
   let current: FlowStage | null = null;
   let pendingHandoff: string | undefined;
   let agentSeq = 0;
+  let markerSeq = 0;
 
   const ensureAgentStage = (event: FlowEvent): FlowStage => {
     if (current && current.kind === "agent") {
@@ -110,6 +111,31 @@ export function buildPipeline(events: FlowEvent[]): FlowStage[] {
             ? "failed"
             : "success";
         }
+        break;
+      }
+      case "revise": {
+        if (current) {
+          current.status = "failed";
+        }
+        markerSeq += 1;
+        stages.push(
+          newStage(`revise-${markerSeq}`, "revise", event.message || "修订重试", "active"),
+        );
+        current = null;
+        break;
+      }
+      case "verify": {
+        const ok = event.success !== false;
+        markerSeq += 1;
+        stages.push(
+          newStage(
+            `verify-${markerSeq}`,
+            "verify",
+            event.message || "结果校验",
+            ok ? "success" : "failed",
+          ),
+        );
+        current = null;
         break;
       }
       case "done": {

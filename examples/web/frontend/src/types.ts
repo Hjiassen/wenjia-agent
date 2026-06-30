@@ -7,6 +7,8 @@ export type FlowEventType =
   | "tool_start"
   | "tool_done"
   | "generating"
+  | "revise"
+  | "verify"
   | "done"
   | "error";
 
@@ -39,7 +41,7 @@ export interface ToolItem {
   duration?: number;
 }
 
-export type StageKind = "start" | "agent" | "done" | "error";
+export type StageKind = "start" | "agent" | "revise" | "verify" | "done" | "error";
 
 export interface FlowStage {
   id: string;

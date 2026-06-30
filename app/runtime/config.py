@@ -19,6 +19,11 @@ class Settings(BaseSettings):
         alias="WENJIA_SESSION_DB_URL",
     )
 
+    # Harness loop controls.
+    harness_max_turns: int = Field(default=16, alias="WENJIA_HARNESS_MAX_TURNS")
+    harness_max_revisions: int = Field(default=1, alias="WENJIA_HARNESS_MAX_REVISIONS")
+    harness_revise_enabled: bool = Field(default=True, alias="WENJIA_HARNESS_REVISE")
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

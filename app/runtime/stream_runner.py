@@ -13,6 +13,10 @@ from agents.extensions.memory import SQLAlchemySession
 from agents.lifecycle import RunHooksBase
 
 from app.agents.main_agent import main_agent
+from app.guardrails.output_checks import run_output_checks
+from app.harness.loop import ActOutcome, run_harness
+from app.harness.policy import default_policy
+from app.runtime import profile_store
 from app.runtime.config import settings
 from app.runtime.output_format import format_final_output
 from app.runtime.run_context import WenjiaRunContext
@@ -29,7 +33,6 @@ from app.runtime.models import build_run_config
 
 FlowEvent = dict[str, Any]
 _QUEUE_SENTINEL = object()
-MAX_TURNS = 16
 _MAX_TURNS_MESSAGE = "推演步骤过多已中止，请补充更完整的信息或简化问题后重试。"
 
 
@@ -177,13 +180,16 @@ async def stream_agent_events(session_id: str, message: str) -> AsyncIterator[Fl
             create_tables=True,
         )
         hooks = FlowRunHooks(emitter)
-        try:
+        context = WenjiaRunContext(session_id=session_id)
+        policy = default_policy()
+
+        async def act(correction: str | None) -> ActOutcome:
             result = Runner.run_streamed(
                 main_agent,
-                message,
+                correction or message,
                 session=session,
-                context=WenjiaRunContext(session_id=session_id),
-                max_turns=MAX_TURNS,
+                context=context,
+                max_turns=policy.max_turns,
                 hooks=hooks,
                 run_config=build_run_config(),
             )
@@ -191,11 +197,22 @@ async def stream_agent_events(session_id: str, message: str) -> AsyncIterator[Fl
                 pass
             if result.run_loop_exception:
                 raise result.run_loop_exception
+            return ActOutcome(result.final_output, format_final_output(result.final_output))
+
+        def verify(outcome: ActOutcome):
+            return run_output_checks(
+                outcome.rendered_text,
+                outcome.final_output,
+                profile_store.list_profiles(session_id),
+            )
+
+        try:
+            result = await run_harness(act, verify, policy, on_event=emitter.emit)
             await emitter.emit(
                 {
                     "type": "done",
                     "success": True,
-                    "content": format_final_output(result.final_output),
+                    "content": result.rendered_text,
                     "message": "推演完成。",
                 }
             )
