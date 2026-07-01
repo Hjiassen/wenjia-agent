@@ -13,6 +13,35 @@ interface StreamCallbacks {
   onSessionId?: (sessionId: string) => void;
 }
 
+export class StreamFlowError extends Error {
+  events: FlowEvent[];
+  sessionId: string;
+
+  constructor(message: string, events: FlowEvent[], sessionId: string) {
+    super(message);
+    this.name = "StreamFlowError";
+    Object.setPrototypeOf(this, StreamFlowError.prototype);
+    this.events = events;
+    this.sessionId = sessionId;
+  }
+}
+
+function makeClientEvent(
+  type: "interrupted" | "error",
+  sessionId: string,
+  message: string,
+): FlowEvent {
+  return {
+    id: `client:${sessionId}:${Date.now()}`,
+    type,
+    session_id: sessionId,
+    timestamp: new Date().toISOString(),
+    success: false,
+    source: "client",
+    message,
+  };
+}
+
 function parseSseChunk(chunk: string): FlowEvent | null {
   const data = chunk
     .split("\n")
@@ -56,6 +85,11 @@ export function useChatStream() {
       const events: FlowEvent[] = [];
       let resolvedSession = sessionId;
 
+      const pushClientEvent = (event: FlowEvent) => {
+        events.push(event);
+        callbacks.onEvent(event);
+      };
+
       try {
         const response = await fetch("/api/chat/stream", {
           method: "POST",
@@ -96,11 +130,11 @@ export function useChatStream() {
 
             if (event.type === "done") {
               if (event.success === false) {
-                throw new Error(event.message || "Agent 请求失败。");
+                throw new StreamFlowError(event.message || "Agent 请求失败。", events, resolvedSession);
               }
               finalOutput = event.content || "";
             } else if (event.type === "error") {
-              throw new Error(event.message || "Agent 请求失败。");
+              throw new StreamFlowError(event.message || "Agent 请求失败。", events, resolvedSession);
             }
           }
         }
@@ -111,10 +145,17 @@ export function useChatStream() {
         return { finalOutput, events, sessionId: resolvedSession };
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
-          // User cancelled: return whatever was streamed so far, non-fatal.
+          pushClientEvent(
+            makeClientEvent("interrupted", resolvedSession, "推演已被手动中止。"),
+          );
           return { finalOutput: "", events, sessionId: resolvedSession, aborted: true };
         }
-        throw error;
+        if (error instanceof StreamFlowError) {
+          throw error;
+        }
+        const text = error instanceof Error ? error.message : "请求失败，请稍后再试。";
+        pushClientEvent(makeClientEvent("error", resolvedSession, text));
+        throw new StreamFlowError(text, events, resolvedSession);
       } finally {
         sendingRef.current = false;
         setIsSending(false);

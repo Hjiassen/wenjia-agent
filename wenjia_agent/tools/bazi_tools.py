@@ -199,6 +199,67 @@ def build_bazi_context_data(
     ).model_dump()
 
 
+def build_luck_cycle_context_data(
+    name: str,
+    gender: str,
+    birth_year: int,
+    birth_month: int,
+    birth_day: int,
+    birth_hour: int,
+    birth_minute: int = 0,
+    calendar_type: str = "solar",
+    is_leap_month: bool = False,
+    province: str | None = None,
+    city: str | None = None,
+    longitude: float | None = None,
+    target_year: int | None = None,
+) -> dict:
+    """Build deterministic DaYun/LiuNian context from birth data."""
+
+    try:
+        birth_info = BirthInfo(
+            name=name,
+            gender=gender,
+            birth_year=birth_year,
+            birth_month=birth_month,
+            birth_day=birth_day,
+            birth_hour=birth_hour,
+            birth_minute=birth_minute,
+            calendar_type=calendar_type,  # type: ignore[arg-type]
+            is_leap_month=is_leap_month,
+            province=province,
+            city=city,
+            longitude=longitude,
+        )
+        bazi_result = _adapter.calculate(birth_info)
+        luck_cycle = _adapter.calculator.calculate_luck_cycles(
+            year=bazi_result.actual_birth_year,
+            month=bazi_result.actual_birth_month,
+            day=bazi_result.actual_birth_day,
+            hour=birth_info.birth_hour,
+            minute=birth_info.birth_minute,
+            gender=birth_info.gender,
+            target_year=target_year,
+            use_solar_time=True,
+            longitude=bazi_result.longitude,
+        )
+        return ToolResult(
+            ok=True,
+            tool_name="build_luck_cycle_context",
+            data={
+                "bazi": bazi_result.model_dump(),
+                "luck_cycle": luck_cycle,
+            },
+            warnings=bazi_result.warnings,
+        ).model_dump()
+    except Exception as exc:  # noqa: BLE001 - tool boundary.
+        return ToolResult(
+            ok=False,
+            tool_name="build_luck_cycle_context",
+            message=str(exc),
+        ).model_dump()
+
+
 @function_tool
 def validate_birth_info_tool(
     name: str | None = None,
@@ -335,6 +396,51 @@ def build_bazi_context_tool(
     # the DB without depending on the model to call ``save_profile_tool``.
     _autosave_subject(ctx, result)
     return result
+
+
+@function_tool
+def build_luck_cycle_context_tool(
+    ctx: RunContextWrapper[WenjiaRunContext],
+    name: str,
+    gender: str,
+    birth_year: int,
+    birth_month: int,
+    birth_day: int,
+    birth_hour: int,
+    birth_minute: int = 0,
+    calendar_type: str = "solar",
+    is_leap_month: bool = False,
+    province: str | None = None,
+    city: str | None = None,
+    longitude: float | None = None,
+    target_year: int | None = None,
+) -> dict:
+    """Build deterministic DaYun/LiuNian context for fortune analysis.
+
+    Use when users ask about 大运、流年、未来年份、某年运势、十年运势、
+    大运切换期, or timing questions. Never infer DaYun/LiuNian directly.
+    """
+
+    return _dedup_charting(
+        ctx,
+        "build_luck_cycle_context_tool",
+        dict(
+            name=name,
+            gender=gender,
+            birth_year=birth_year,
+            birth_month=birth_month,
+            birth_day=birth_day,
+            birth_hour=birth_hour,
+            birth_minute=birth_minute,
+            calendar_type=calendar_type,
+            is_leap_month=is_leap_month,
+            province=province,
+            city=city,
+            longitude=longitude,
+            target_year=target_year,
+        ),
+        build_luck_cycle_context_data,
+    )
 
 
 def _autosave_subject(ctx: RunContextWrapper[WenjiaRunContext] | None, result: dict) -> None:
@@ -498,6 +604,7 @@ BAZI_TOOLS = [
     validate_birth_info_tool,
     calculate_bazi_tool,
     build_bazi_context_tool,
+    build_luck_cycle_context_tool,
     list_profiles_tool,
     list_provinces_tool,
     list_cities_tool,
@@ -511,6 +618,7 @@ BAZI_TOOLS = [
 PROFILE_TOOLS = [
     validate_birth_info_tool,
     build_bazi_context_tool,
+    build_luck_cycle_context_tool,
     save_profile_tool,
     list_profiles_tool,
     list_provinces_tool,
@@ -522,6 +630,7 @@ PROFILE_TOOLS = [
 NAMING_TOOLS = [
     validate_birth_info_tool,
     build_bazi_context_tool,
+    build_luck_cycle_context_tool,
     save_profile_tool,
     list_profiles_tool,
     list_provinces_tool,

@@ -10,6 +10,7 @@ export type FlowEventType =
   | "revise"
   | "verify"
   | "done"
+  | "interrupted"
   | "error";
 
 export interface FlowEvent {
@@ -30,6 +31,7 @@ export interface FlowEvent {
   success?: boolean;
   duration?: number;
   content?: string;
+  source?: "server" | "client";
 }
 
 export type StageStatus = "pending" | "active" | "success" | "failed";
@@ -42,7 +44,7 @@ export interface ToolItem {
   note?: string;
 }
 
-export type StageKind = "start" | "agent" | "revise" | "verify" | "done" | "error";
+export type StageKind = "start" | "agent" | "revise" | "verify" | "done" | "interrupted" | "error";
 
 export interface FlowStage {
   id: string;
@@ -76,6 +78,10 @@ export interface StepRow {
 
 export type MessageRole = "user" | "assistant";
 
+export interface SuggestedQuestion {
+  prompt: string;
+}
+
 export interface ChatMessage {
   role: MessageRole;
   body: string;
@@ -83,6 +89,8 @@ export interface ChatMessage {
   flow: FlowEvent[];
   createdAt: string;
   profileContext?: AttachedProfile[];
+  suggestions?: SuggestedQuestion[];
+  suggestionsLoading?: boolean;
 }
 
 export interface Conversation {

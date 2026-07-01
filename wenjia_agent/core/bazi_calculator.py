@@ -14,6 +14,12 @@ class BaziCalculator:
         "子": "水", "丑": "土", "寅": "木", "卯": "木", "辰": "土", "巳": "火",
         "午": "火", "未": "土", "申": "金", "酉": "金", "戌": "土", "亥": "水"
     }
+    STEM_YIN_YANG = {
+        "甲": "阳", "乙": "阴", "丙": "阳", "丁": "阴", "戊": "阳",
+        "己": "阴", "庚": "阳", "辛": "阴", "壬": "阳", "癸": "阴",
+    }
+    GENERATES = {"木": "火", "火": "土", "土": "金", "金": "水", "水": "木"}
+    CONTROLS = {"木": "土", "土": "水", "水": "火", "火": "金", "金": "木"}
     
     def __init__(self):
         pass
@@ -208,6 +214,196 @@ class BaziCalculator:
             "shen_sha": shen_sha,
             # 空亡（旬空）
             "kong_wang": kong_wang,
+        }
+
+    def calculate_luck_cycles(
+        self,
+        year: int,
+        month: int,
+        day: int,
+        hour: int,
+        minute: int = 0,
+        gender: str = "未知",
+        target_year: int | None = None,
+        use_solar_time: bool = True,
+        longitude: float = 116.4,
+        da_yun_count: int = 10,
+    ) -> dict[str, Any]:
+        """Calculate DaYun and LiuNian context with lunar_python.
+
+        The returned data is deterministic context only. Interpretation remains
+        the Agent's job, but it must cite these fields instead of inventing them.
+        """
+
+        gender_code = self._gender_code(gender)
+        if gender_code is None:
+            raise ValueError("大运流年推算需要明确性别：男或女。")
+
+        if use_solar_time:
+            year, month, day, hour, minute = self.convert_to_solar_time(
+                year,
+                month,
+                day,
+                hour,
+                minute,
+                longitude,
+            )
+
+        target_year = target_year or datetime.now().year
+        solar = Solar.fromYmdHms(year, month, day, hour, minute, 0)
+        lunar = solar.getLunar()
+        eight_char = lunar.getEightChar()
+        eight_char.setSect(1)
+        yun = eight_char.getYun(gender_code)
+        day_master = eight_char.getDayGan()
+
+        da_yun_list = []
+        current_da_yun = None
+        for da_yun in yun.getDaYun(da_yun_count):
+            item = self._da_yun_to_dict(da_yun, day_master, target_year)
+            da_yun_list.append(item)
+            if item["is_target"]:
+                current_da_yun = item
+
+        target_liu_nian = None
+        current_cycle_years: list[dict[str, Any]] = []
+        if current_da_yun:
+            da_yun_obj = yun.getDaYun(da_yun_count)[current_da_yun["index"]]
+            current_cycle_years = [
+                self._liu_nian_to_dict(liu_nian, day_master, target_year)
+                for liu_nian in da_yun_obj.getLiuNian()
+            ]
+            target_liu_nian = next(
+                (item for item in current_cycle_years if item["year"] == target_year),
+                None,
+            )
+
+        start_solar = yun.getStartSolar()
+        return {
+            "target_year": target_year,
+            "birth_true_solar": {
+                "year": year,
+                "month": month,
+                "day": day,
+                "hour": hour,
+                "minute": minute,
+            },
+            "pillars": {
+                "year": eight_char.getYear(),
+                "month": eight_char.getMonth(),
+                "day": eight_char.getDay(),
+                "hour": eight_char.getTime(),
+            },
+            "day_master": day_master,
+            "gender_code": gender_code,
+            "direction": "顺行" if yun.isForward() else "逆行",
+            "start": {
+                "years": yun.getStartYear(),
+                "months": yun.getStartMonth(),
+                "days": yun.getStartDay(),
+                "hours": yun.getStartHour(),
+                "solar_date": (
+                    f"{start_solar.getYear():04d}-"
+                    f"{start_solar.getMonth():02d}-"
+                    f"{start_solar.getDay():02d}"
+                ),
+            },
+            "da_yun": da_yun_list,
+            "target_da_yun": current_da_yun,
+            "target_liu_nian": target_liu_nian,
+            "target_cycle_annual_years": current_cycle_years,
+        }
+
+    def _gender_code(self, gender: str) -> int | None:
+        normalized = str(gender or "").strip().lower()
+        if normalized in {"男", "男性", "男命", "male", "m", "1"}:
+            return 1
+        if normalized in {"女", "女性", "女命", "female", "f", "0"}:
+            return 0
+        return None
+
+    def _stem_info(self, stem: str, day_master: str) -> dict[str, str | None]:
+        element = self.FIVE_ELEMENTS.get(stem)
+        yin_yang = self.STEM_YIN_YANG.get(stem)
+        return {
+            "stem": stem,
+            "element": element,
+            "yin_yang": yin_yang,
+            "ten_god": self._ten_god(day_master, stem),
+        }
+
+    def _pillar_info(self, gan_zhi: str, day_master: str) -> dict[str, Any]:
+        gan = gan_zhi[0] if gan_zhi else ""
+        zhi = gan_zhi[1] if len(gan_zhi) > 1 else ""
+        return {
+            "gan_zhi": gan_zhi,
+            "gan": self._stem_info(gan, day_master) if gan else None,
+            "zhi": {
+                "branch": zhi,
+                "element": self.FIVE_ELEMENTS.get(zhi),
+            } if zhi else None,
+        }
+
+    def _ten_god(self, day_master: str, target_stem: str) -> str | None:
+        day_element = self.FIVE_ELEMENTS.get(day_master)
+        target_element = self.FIVE_ELEMENTS.get(target_stem)
+        day_yin_yang = self.STEM_YIN_YANG.get(day_master)
+        target_yin_yang = self.STEM_YIN_YANG.get(target_stem)
+        if not day_element or not target_element or not day_yin_yang or not target_yin_yang:
+            return None
+
+        same_polarity = day_yin_yang == target_yin_yang
+        if target_element == day_element:
+            return "比肩" if same_polarity else "劫财"
+        if self.GENERATES.get(day_element) == target_element:
+            return "食神" if same_polarity else "伤官"
+        if self.CONTROLS.get(day_element) == target_element:
+            return "偏财" if same_polarity else "正财"
+        if self.CONTROLS.get(target_element) == day_element:
+            return "七杀" if same_polarity else "正官"
+        if self.GENERATES.get(target_element) == day_element:
+            return "偏印" if same_polarity else "正印"
+        return None
+
+    def _da_yun_to_dict(
+        self,
+        da_yun: Any,
+        day_master: str,
+        target_year: int,
+    ) -> dict[str, Any]:
+        gan_zhi = da_yun.getGanZhi()
+        start_year = da_yun.getStartYear()
+        end_year = da_yun.getEndYear()
+        return {
+            "index": da_yun.getIndex(),
+            "gan_zhi": gan_zhi,
+            "pillar": self._pillar_info(gan_zhi, day_master) if gan_zhi else None,
+            "start_year": start_year,
+            "end_year": end_year,
+            "start_age": da_yun.getStartAge(),
+            "end_age": da_yun.getEndAge(),
+            "xun": da_yun.getXun(),
+            "xun_kong": da_yun.getXunKong(),
+            "is_target": start_year <= target_year <= end_year,
+        }
+
+    def _liu_nian_to_dict(
+        self,
+        liu_nian: Any,
+        day_master: str,
+        target_year: int,
+    ) -> dict[str, Any]:
+        gan_zhi = liu_nian.getGanZhi()
+        year = liu_nian.getYear()
+        return {
+            "index": liu_nian.getIndex(),
+            "year": year,
+            "age": liu_nian.getAge(),
+            "gan_zhi": gan_zhi,
+            "pillar": self._pillar_info(gan_zhi, day_master),
+            "xun": liu_nian.getXun(),
+            "xun_kong": liu_nian.getXunKong(),
+            "is_target": year == target_year,
         }
     
     def get_five_elements_analysis(self, bazi: Dict[str, str], 

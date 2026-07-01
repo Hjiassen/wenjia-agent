@@ -15,10 +15,19 @@ AGENT_DISPLAY_NAMES = {
 }
 
 TOOL_DISPLAY_NAMES = {
+    "validate_birth_info": "出生信息完整性检查",
     "validate_birth_info_tool": "出生信息完整性检查",
+    "calculate_bazi": "确定性八字排盘",
     "calculate_bazi_tool": "确定性八字排盘",
+    "build_bazi_context": "命盘上下文构建",
     "build_bazi_context_tool": "命盘上下文构建",
+    "build_luck_cycle_context": "大运流年推算",
+    "build_luck_cycle_context_tool": "大运流年推算",
+    "save_profile_tool": "人物档案保存",
+    "list_profiles_tool": "人物档案查询",
+    "list_provinces": "支持省份查询",
     "list_provinces_tool": "支持省份查询",
+    "list_cities": "支持城市查询",
     "list_cities_tool": "支持城市查询",
 }
 
@@ -61,7 +70,7 @@ def get_tool_display_name(tool_or_name: Any) -> str:
     """Return a user-facing Chinese tool label."""
 
     name = tool_or_name if isinstance(tool_or_name, str) else getattr(tool_or_name, "name", "")
-    return TOOL_DISPLAY_NAMES.get(name, name or "工具调用")
+    return TOOL_DISPLAY_NAMES.get(name, "工具调用")
 
 
 def is_tool_result_success(result: object) -> bool:

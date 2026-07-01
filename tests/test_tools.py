@@ -1,5 +1,6 @@
 from wenjia_agent.tools.bazi_tools import (
     build_bazi_context_data,
+    build_luck_cycle_context_data,
     calculate_bazi,
     list_cities,
     list_provinces,
@@ -49,6 +50,49 @@ def test_build_bazi_context_tool_data_shape():
         "金",
         "水",
     }
+
+
+def test_build_luck_cycle_context_tool_data_shape():
+    result = build_luck_cycle_context_data(
+        name="测试",
+        gender="男",
+        birth_year=1990,
+        birth_month=5,
+        birth_day=10,
+        birth_hour=15,
+        birth_minute=0,
+        province="北京市",
+        city="北京市",
+        target_year=2026,
+    )
+
+    assert result["ok"] is True
+    assert result["tool_name"] == "build_luck_cycle_context"
+    luck = result["data"]["luck_cycle"]
+    assert luck["direction"] in {"顺行", "逆行"}
+    assert luck["start"]["solar_date"]
+    assert luck["target_year"] == 2026
+    assert luck["target_da_yun"]["is_target"] is True
+    assert luck["target_liu_nian"]["year"] == 2026
+    assert len(luck["target_cycle_annual_years"]) >= 1
+
+
+def test_build_luck_cycle_context_requires_binary_gender():
+    result = build_luck_cycle_context_data(
+        name="测试",
+        gender="未知",
+        birth_year=1990,
+        birth_month=5,
+        birth_day=10,
+        birth_hour=15,
+        birth_minute=0,
+        province="北京市",
+        city="北京市",
+        target_year=2026,
+    )
+
+    assert result["ok"] is False
+    assert "性别" in result["message"]
 
 
 def test_city_tools_data_shape():

@@ -54,6 +54,13 @@ function durationText(value?: number): string {
   return typeof value === "number" ? ` · ${value.toFixed(2)}s` : "";
 }
 
+function stageStatusMeta(stage: FlowStage): { text: string; icon: ReactNode } {
+  if (stage.kind === "interrupted") {
+    return { text: "中止", icon: <CloseCircleFilled /> };
+  }
+  return STATUS_META[stage.status];
+}
+
 function isCheckpoint(stage: FlowStage): boolean {
   return (
     (stage.kind === "start" || stage.kind === "verify" || stage.kind === "done") &&
@@ -64,7 +71,7 @@ function isCheckpoint(stage: FlowStage): boolean {
 }
 
 export function StageCard({ stage }: { stage: FlowStage }) {
-  const meta = STATUS_META[stage.status];
+  const meta = stageStatusMeta(stage);
   const hasDetails = Boolean(stage.viaHandoff || stage.thinkingSteps.length || stage.tools.length);
 
   if (isCheckpoint(stage)) {

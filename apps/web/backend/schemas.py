@@ -19,6 +19,20 @@ class ChatResponse(BaseModel):
     output: str
 
 
+class SuggestionRequest(BaseModel):
+    """Request payload for next-question suggestions."""
+
+    session_id: str | None = Field(default=None, max_length=128)
+    user_message: str = Field(..., min_length=1, max_length=8000)
+    assistant_message: str = Field(..., min_length=1, max_length=12000)
+
+
+class SuggestionResponse(BaseModel):
+    """Response payload for next-question suggestions."""
+
+    suggestions: list[str]
+
+
 class ProfilePayload(BaseModel):
     """Editable person profile fields from the web UI."""
 

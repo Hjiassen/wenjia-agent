@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bubble, Prompts, Sender, Welcome } from "@ant-design/x";
 import type { BubbleProps } from "@ant-design/x";
-import { Avatar, Badge, Button, Tag } from "antd";
+import { Avatar, Badge, Button, Skeleton, Tag } from "antd";
 import {
   IdcardOutlined,
   MenuOutlined,
@@ -81,6 +81,49 @@ function userMessageRender(content: string, attachedProfiles?: AttachedProfile[]
   );
 }
 
+function suggestionsLoadingRender() {
+  return (
+    <div className="message-suggestions is-loading">
+      <div className="message-suggestions-title">你可以继续问</div>
+      <div className="message-suggestions-loading-list">
+        {[0, 1, 2].map((item) => (
+          <Skeleton.Button key={item} active block size="small" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function assistantMessageRender(
+  content: string,
+  message: ChatMessage,
+  isMobile: boolean,
+  onSuggestionClick: (prompt: string) => void,
+) {
+  const suggestions = message.suggestions ?? [];
+  const showSuggestions = suggestions.length > 0;
+
+  return (
+    <div className="assistant-message-content">
+      {markdownRender(content)}
+      {message.suggestionsLoading ? suggestionsLoadingRender() : null}
+      {!message.suggestionsLoading && showSuggestions ? (
+        <Prompts
+          className="message-suggestions"
+          title="你可以继续问"
+          wrap={!isMobile}
+          vertical={isMobile}
+          items={suggestions.map((suggestion) => ({
+            key: suggestion.prompt,
+            label: suggestion.prompt,
+          }))}
+          onItemClick={(info) => onSuggestionClick(String(info.data.key))}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 export function ChatWindow({
   messages,
   pending,
@@ -112,6 +155,15 @@ export function ChatWindow({
         ? selectedProfiles[0].name
         : `${selectedProfiles[0].name}等${selectedProfiles.length}人`;
 
+  const handleSubmit = useCallback((value: string) => {
+    const text = value.trim();
+    if (!text || isSending) {
+      return;
+    }
+    setProfilePickerOpen(false);
+    onSubmit(text, selectedProfiles);
+  }, [isSending, onSubmit, selectedProfiles]);
+
   const items = useMemo(() => {
     const list = messages.map((message, index) => {
       const isAssistant = message.role === "assistant";
@@ -122,7 +174,8 @@ export function ChatWindow({
         content: message.body,
       };
       if (isAssistant && !isError) {
-        item.messageRender = markdownRender;
+        item.messageRender = (text: string) =>
+          assistantMessageRender(text, message, isMobile, handleSubmit);
       }
       if (!isAssistant && message.profileContext?.length) {
         item.messageRender = (text: string) => userMessageRender(text, message.profileContext);
@@ -142,7 +195,7 @@ export function ChatWindow({
       });
     }
     return list;
-  }, [messages, pending]);
+  }, [messages, pending, isMobile, handleSubmit]);
 
   const showWelcome = messages.length === 0 && !pending.active;
 
@@ -167,15 +220,6 @@ export function ChatWindow({
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, [profilePickerOpen]);
-
-  const handleSubmit = (value: string) => {
-    const text = value.trim();
-    if (!text || isSending) {
-      return;
-    }
-    setProfilePickerOpen(false);
-    onSubmit(text, selectedProfiles);
-  };
 
   const removeSelectedProfile = (profileId: number) => {
     onSelectedProfileIdsChange(selectedProfileIds.filter((id) => id !== profileId));
@@ -225,8 +269,8 @@ export function ChatWindow({
               onClick={onOpenSider}
             />
           )}
-          <span className="chat-header-title">命理推演</span>
         </div>
+        <span className="chat-header-title">命理推演</span>
         <div className="chat-header-actions">
           <Badge dot={isSending} color="#0f766e" offset={[-2, 4]}>
             <Button
@@ -251,12 +295,14 @@ export function ChatWindow({
                 description="确定性排盘加多智能体分析。先补全出生信息，我会带你完成排盘、命格、关系与起名推演。"
               />
               <Prompts
-                title="试试这些开场"
-                wrap
+                className="welcome-prompts"
+                title="从这里开始"
+                wrap={!isMobile}
+                vertical={isMobile}
                 items={RECOMMENDED_PROMPTS.map((prompt) => ({
                   key: prompt.prompt,
                   label: prompt.label,
-                  description: prompt.prompt,
+                  description: prompt.description,
                 }))}
                 onItemClick={(info) => handleSubmit(String(info.data.key))}
               />

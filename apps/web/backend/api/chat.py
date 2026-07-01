@@ -10,8 +10,14 @@ from fastapi.responses import StreamingResponse
 
 from wenjia_agent.runtime.runner import run_agent
 from wenjia_agent.runtime.stream_runner import stream_agent_events
+from wenjia_agent.runtime.suggestions import generate_suggestions
 
-from ..schemas import ChatRequest, ChatResponse
+from ..schemas import (
+    ChatRequest,
+    ChatResponse,
+    SuggestionRequest,
+    SuggestionResponse,
+)
 
 router = APIRouter()
 
@@ -29,6 +35,20 @@ async def chat(payload: ChatRequest) -> ChatResponse:
         raise HTTPException(status_code=502, detail=f"Agent request failed: {exc}") from exc
 
     return ChatResponse(session_id=session_id, output=output)
+
+
+@router.post("/chat/suggestions", response_model=SuggestionResponse)
+async def chat_suggestions(payload: SuggestionRequest) -> SuggestionResponse:
+    """Generate lightweight follow-up question suggestions for a finished turn."""
+
+    suggestions = await generate_suggestions(
+        session_id=payload.session_id,
+        user_message=payload.user_message,
+        assistant_message=payload.assistant_message,
+    )
+    return SuggestionResponse(
+        suggestions=[item.prompt for item in suggestions]
+    )
 
 
 @router.post("/chat/stream")

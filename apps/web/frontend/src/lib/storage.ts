@@ -1,4 +1,4 @@
-import type { ChatMessage, Conversation } from "../types";
+import type { ChatMessage, Conversation, FlowEvent } from "../types";
 
 const activeSessionKey = "wenjia-agent-web-active-session";
 const legacySessionKey = "wenjia-agent-web-session";
@@ -17,11 +17,122 @@ export function createConversation(id: string = createSessionId()): Conversation
   return { id, title: "新的对话", createdAt, updatedAt: createdAt, messages: [] };
 }
 
+function isFlowEvent(value: unknown): value is FlowEvent {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      typeof (value as FlowEvent).type === "string",
+  );
+}
+
+function legacyFlow(message: Record<string, unknown>): FlowEvent[] {
+  const source = Array.isArray(message.flow)
+    ? message.flow
+    : Array.isArray(message.flowSteps)
+      ? message.flowSteps
+      : [];
+  return source.filter(isFlowEvent);
+}
+
+function terminalFlowType(events: FlowEvent[]): FlowEvent["type"] | null {
+  const terminal = [...events]
+    .reverse()
+    .find((event) => event.type === "done" || event.type === "error" || event.type === "interrupted");
+  return terminal?.type ?? null;
+}
+
+function looksInterrupted(body: string): boolean {
+  return /手动|中止|停止|取消|打断/.test(body);
+}
+
+function makeHistoryTerminalEvent(
+  conversationId: string,
+  messageIndex: number,
+  type: "interrupted" | "error",
+  message: ChatMessage,
+): FlowEvent {
+  return {
+    id: `history:${conversationId}:${messageIndex}:${type}`,
+    type,
+    session_id: conversationId,
+    timestamp: message.createdAt,
+    success: false,
+    source: "client",
+    message: type === "interrupted" ? "推演已被手动中止。" : message.body || "请求失败。",
+  };
+}
+
+function normalizeMessage(
+  conversationId: string,
+  message: unknown,
+  index: number,
+): ChatMessage | null {
+  if (!message || typeof message !== "object") {
+    return null;
+  }
+
+  const raw = message as Record<string, unknown>;
+  const role = raw.role === "user" || raw.role === "assistant" ? raw.role : null;
+  if (!role) {
+    return null;
+  }
+
+  const normalized: ChatMessage = {
+    ...(raw as Partial<ChatMessage>),
+    role,
+    body: typeof raw.body === "string" ? raw.body : "",
+    type: raw.type === "error" ? "error" : "",
+    flow: legacyFlow(raw),
+    createdAt: typeof raw.createdAt === "string" ? raw.createdAt : nowIso(),
+  };
+
+  if (normalized.role === "assistant" && normalized.type === "error") {
+    const terminal = terminalFlowType(normalized.flow);
+    if (terminal !== "error" && terminal !== "interrupted") {
+      const type = looksInterrupted(normalized.body) ? "interrupted" : "error";
+      normalized.flow = [
+        ...normalized.flow,
+        makeHistoryTerminalEvent(conversationId, index, type, normalized),
+      ];
+    }
+  }
+
+  return normalized;
+}
+
+function normalizeConversation(value: unknown): Conversation | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.id !== "string" || !raw.id) {
+    return null;
+  }
+
+  const createdAt = typeof raw.createdAt === "string" ? raw.createdAt : nowIso();
+  const messages = Array.isArray(raw.messages)
+    ? raw.messages
+        .map((message, index) => normalizeMessage(raw.id as string, message, index))
+        .filter((message): message is ChatMessage => Boolean(message))
+    : [];
+
+  return {
+    id: raw.id,
+    title: typeof raw.title === "string" ? raw.title : "新的对话",
+    createdAt,
+    updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : createdAt,
+    messages,
+  };
+}
+
 export function loadConversations(): Conversation[] {
   try {
     const parsed = JSON.parse(localStorage.getItem(conversationsKey) || "[]");
     if (Array.isArray(parsed)) {
-      return parsed.filter((item) => item && item.id) as Conversation[];
+      return parsed
+        .map(normalizeConversation)
+        .filter((item): item is Conversation => Boolean(item));
     }
   } catch {
     // Ignore broken localStorage data and start fresh.

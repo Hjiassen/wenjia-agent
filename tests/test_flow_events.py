@@ -10,6 +10,7 @@ def test_flow_event_display_names():
     assert get_agent_display_name("FortuneAgent") == "命格分析"
     assert get_tool_display_name("validate_birth_info_tool") == "出生信息完整性检查"
     assert get_tool_display_name("calculate_bazi_tool") == "确定性八字排盘"
+    assert get_tool_display_name("build_luck_cycle_context_tool") == "大运流年推算"
 
 
 def test_tool_result_success_detection():

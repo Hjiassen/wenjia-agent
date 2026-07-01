@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Layout, App as AntdApp, Drawer, Grid } from "antd";
+import { Layout, App as AntdApp, Button, Drawer, Grid, Tooltip } from "antd";
+import { MenuUnfoldOutlined, PlusOutlined } from "@ant-design/icons";
 import { ChatSider } from "./components/ChatSider";
 import { ChatWindow } from "./components/ChatWindow";
 import { RunFlowPanel, type RunFlowTurn } from "./components/RunFlowPanel";
-import { useChatStream } from "./hooks/useChatStream";
-import type { ChatMessage, Conversation, FlowEvent, Profile } from "./types";
+import { StreamFlowError, useChatStream } from "./hooks/useChatStream";
+import type { ChatMessage, Conversation, FlowEvent, Profile, SuggestedQuestion } from "./types";
 import { buildProfilePrompt, toAttachedProfile } from "./lib/profileText";
 import {
   createConversation,
+  createSessionId,
+  conversationTitle,
   loadActiveSessionId,
   loadConversations,
   nowIso,
@@ -27,6 +30,48 @@ interface PendingState {
 
 const IDLE_PENDING: PendingState = { active: false, body: "", events: [], error: false };
 
+async function fetchSuggestedQuestions(
+  sessionId: string,
+  userMessage: string,
+  assistantMessage: string,
+): Promise<SuggestedQuestion[]> {
+  const response = await fetch("/api/chat/suggestions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      session_id: sessionId,
+      user_message: userMessage,
+      assistant_message: assistantMessage,
+    }),
+  });
+  if (!response.ok) {
+    return [];
+  }
+
+  const payload = await response.json().catch(() => null);
+  if (!payload || !Array.isArray(payload.suggestions)) {
+    return [];
+  }
+
+  const rawSuggestions: unknown[] = payload.suggestions;
+  return rawSuggestions
+    .map((item) => {
+      if (typeof item === "string") {
+        return { prompt: item.trim() };
+      }
+      if (
+        item &&
+        typeof item === "object" &&
+        typeof (item as SuggestedQuestion).prompt === "string"
+      ) {
+        return { prompt: (item as SuggestedQuestion).prompt.trim() };
+      }
+      return { prompt: "" };
+    })
+    .filter((item) => item.prompt)
+    .slice(0, 3);
+}
+
 function initialState(): { conversations: Conversation[]; sessionId: string } {
   const conversations = loadConversations();
   const stored = loadActiveSessionId();
@@ -34,8 +79,7 @@ function initialState(): { conversations: Conversation[]; sessionId: string } {
   if (stored && conversations.some((conversation) => conversation.id === stored)) {
     return { conversations, sessionId: stored };
   }
-  const conversation = createConversation(stored ?? undefined);
-  return { conversations: [conversation, ...conversations], sessionId: conversation.id };
+  return { conversations, sessionId: stored ?? createSessionId() };
 }
 
 export default function App() {
@@ -46,6 +90,7 @@ export default function App() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedProfileIds, setSelectedProfileIds] = useState<number[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [siderCollapsed, setSiderCollapsed] = useState(false);
   const [flowOpen, setFlowOpen] = useState(false);
   const { send, cancel, isSending } = useChatStream();
   const { modal } = AntdApp.useApp();
@@ -144,6 +189,27 @@ export default function App() {
     });
   }, []);
 
+  const updateMessage = useCallback(
+    (targetId: string, messageCreatedAt: string, patch: Partial<ChatMessage>) => {
+      setState((prev) => ({
+        ...prev,
+        conversations: prev.conversations.map((conversation) =>
+          conversation.id === targetId
+            ? {
+                ...conversation,
+                messages: conversation.messages.map((message) =>
+                  message.createdAt === messageCreatedAt
+                    ? { ...message, ...patch }
+                    : message,
+                ),
+              }
+            : conversation,
+        ),
+      }));
+    },
+    [],
+  );
+
   const handleSubmit = useCallback(
     async (message: string, attachedProfiles: Profile[] = []) => {
       if (isSending) {
@@ -168,6 +234,11 @@ export default function App() {
               ...prev,
               events: [...prev.events, event],
               body: event.type === "done" ? prev.body : event.message || prev.body,
+              error:
+                prev.error ||
+                event.type === "error" ||
+                event.type === "interrupted" ||
+                event.success === false,
             })),
           onSessionId: (id) => setState((prev) => ({ ...prev, sessionId: id })),
         });
@@ -183,37 +254,56 @@ export default function App() {
           }
           return;
         }
+        const assistantCreatedAt = nowIso();
         appendMessage(result.sessionId, {
           role: "assistant",
           body: result.finalOutput,
           flow: result.events,
-          createdAt: nowIso(),
+          createdAt: assistantCreatedAt,
+          suggestionsLoading: true,
         });
+        void fetchSuggestedQuestions(result.sessionId, message, result.finalOutput)
+          .then((suggestions) =>
+            updateMessage(result.sessionId, assistantCreatedAt, {
+              suggestions,
+              suggestionsLoading: false,
+            }),
+          )
+          .catch(() =>
+            updateMessage(result.sessionId, assistantCreatedAt, {
+              suggestions: [],
+              suggestionsLoading: false,
+            }),
+          );
         loadProfiles(result.sessionId);
       } catch (error) {
         const text = error instanceof Error ? error.message : "请求失败，请稍后再试。";
-        appendMessage(activeSession, {
+        const streamFlow = error instanceof StreamFlowError ? error.events : [];
+        const streamSession = error instanceof StreamFlowError ? error.sessionId : activeSession;
+        appendMessage(streamSession, {
           role: "assistant",
           body: text,
           type: "error",
-          flow: [],
+          flow: streamFlow,
           createdAt: nowIso(),
         });
+        if (streamSession !== activeSession) {
+          setState((prev) => ({ ...prev, sessionId: streamSession }));
+        }
       } finally {
         setPending(IDLE_PENDING);
       }
     },
-    [appendMessage, isSending, send, sessionId, loadProfiles],
+    [appendMessage, updateMessage, isSending, send, sessionId, loadProfiles],
   );
 
   const handleNewSession = useCallback(() => {
-    const conversation = createConversation();
-    setState((prev) => ({
-      conversations: [conversation, ...prev.conversations],
-      sessionId: conversation.id,
-    }));
+    if (isSending) return;
+    setState((prev) => ({ conversations: prev.conversations, sessionId: createSessionId() }));
+    setDraft("");
+    setPending(IDLE_PENDING);
     setDrawerOpen(false);
-  }, []);
+  }, [isSending]);
 
   const handleSelectSession = useCallback(
     (id: string) => {
@@ -224,6 +314,47 @@ export default function App() {
     [isSending],
   );
 
+  const handleDeleteSession = useCallback(
+    (id: string) => {
+      if (isSending) return;
+      const target = conversations.find((conversation) => conversation.id === id);
+      if (!target) return;
+
+      modal.confirm({
+        title: "删除对话",
+        content: `确定删除「${conversationTitle(target)}」吗？此操作只会清除本浏览器中的对话缓存。`,
+        okText: "删除",
+        okButtonProps: { danger: true },
+        cancelText: "取消",
+        onOk: () => {
+          setState((prev) => {
+            const targetIndex = prev.conversations.findIndex(
+              (conversation) => conversation.id === id,
+            );
+            if (targetIndex < 0) {
+              return prev;
+            }
+
+            const remaining = prev.conversations.filter((conversation) => conversation.id !== id);
+            const nextConversation =
+              remaining[targetIndex] ?? remaining[targetIndex - 1] ?? remaining[0];
+            const nextSessionId =
+              prev.sessionId === id ? nextConversation?.id ?? createSessionId() : prev.sessionId;
+
+            return { conversations: remaining, sessionId: nextSessionId };
+          });
+
+          if (sessionId === id) {
+            setDraft("");
+            setPending(IDLE_PENDING);
+            setFlowOpen(false);
+          }
+        },
+      });
+    },
+    [conversations, isSending, modal, sessionId],
+  );
+
   const handleClearHistory = useCallback(() => {
     modal.confirm({
       title: "清空历史对话",
@@ -232,8 +363,9 @@ export default function App() {
       okButtonProps: { danger: true },
       cancelText: "取消",
       onOk: () => {
-        const conversation = createConversation();
-        setState({ conversations: [conversation], sessionId: conversation.id });
+        setState({ conversations: [], sessionId: createSessionId() });
+        setDraft("");
+        setPending(IDLE_PENDING);
       },
     });
   }, [modal]);
@@ -245,7 +377,9 @@ export default function App() {
       health={health}
       onNewSession={handleNewSession}
       onSelectSession={handleSelectSession}
+      onDeleteSession={handleDeleteSession}
       onClearHistory={handleClearHistory}
+      onCollapse={!isMobile ? () => setSiderCollapsed(true) : undefined}
     />
   );
 
@@ -263,8 +397,34 @@ export default function App() {
           {sider}
         </Drawer>
       ) : (
-        <Layout.Sider width={288} className="app-sider" theme="light">
-          {sider}
+        <Layout.Sider
+          width={siderCollapsed ? 58 : 288}
+          className={`app-sider ${siderCollapsed ? "app-sider-collapsed" : ""}`.trim()}
+          theme="light"
+        >
+          {siderCollapsed ? (
+            <div className="sider-rail">
+              <Tooltip title="展开历史" placement="right">
+                <Button
+                  type="text"
+                  aria-label="展开历史"
+                  icon={<MenuUnfoldOutlined />}
+                  onClick={() => setSiderCollapsed(false)}
+                />
+              </Tooltip>
+              <Tooltip title="新的对话" placement="right">
+                <Button
+                  type="text"
+                  aria-label="新的对话"
+                  icon={<PlusOutlined />}
+                  disabled={isSending}
+                  onClick={handleNewSession}
+                />
+              </Tooltip>
+            </div>
+          ) : (
+            sider
+          )}
         </Layout.Sider>
       )}
 
@@ -287,13 +447,13 @@ export default function App() {
           onOpenSider={() => setDrawerOpen(true)}
           onOpenFlow={() => setFlowOpen(true)}
         />
-      </Layout.Content>
 
-      <RunFlowPanel
-        open={flowOpen}
-        turns={runFlowTurns}
-        onClose={() => setFlowOpen(false)}
-      />
+        <RunFlowPanel
+          open={flowOpen}
+          turns={runFlowTurns}
+          onClose={() => setFlowOpen(false)}
+        />
+      </Layout.Content>
     </Layout>
   );
 }

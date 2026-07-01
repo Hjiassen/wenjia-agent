@@ -17,7 +17,6 @@ function fallbackName(event: FlowEvent): string {
   return (
     event.display_name ||
     event.agent_label ||
-    event.tool ||
     event.agent ||
     "处理中"
   );
@@ -71,7 +70,12 @@ export function buildPipeline(events: FlowEvent[]): FlowStage[] {
     return stage;
   };
 
-  const marker = (kind: FlowStage["kind"], label: string, status: StageStatus, event: FlowEvent) => {
+  const marker = (
+    kind: FlowStage["kind"],
+    label: string,
+    status: StageStatus,
+    event: FlowEvent,
+  ) => {
     markerSeq += 1;
     const stage = newStage(`${kind}-${markerSeq}`, kind, label, status);
     stage.startedAt = event.timestamp;
@@ -172,6 +176,13 @@ export function buildPipeline(events: FlowEvent[]): FlowStage[] {
         marker("done", event.message || "推演完成", "success", event);
         break;
       }
+      case "interrupted": {
+        if (current) {
+          current.status = "failed";
+        }
+        marker("interrupted", event.message || "推演已中止", "failed", event);
+        break;
+      }
       case "error": {
         if (current) {
           current.status = "failed";
@@ -237,6 +248,7 @@ const STEP_STATUS: Partial<Record<FlowEvent["type"], StageStatus>> = {
   done: "success",
   verify: "success",
   generating: "success",
+  interrupted: "failed",
   error: "failed",
   revise: "active",
 };

@@ -42,6 +42,12 @@ def test_prompts_enforce_birth_info_gate():
         assert "完整出生信息" in prompt
 
 
+def test_prompts_reference_luck_cycle_tool():
+    for prompt_file in ("fortune_analysis.md", "mystic_tools_agent.md"):
+        prompt = load_prompt(prompt_file)
+        assert "build_luck_cycle_context_tool" in prompt
+
+
 def test_main_agent_has_specialist_handoffs():
     handoff_names = {agent.name for agent in main_agent.handoffs}
 
