@@ -327,7 +327,7 @@ export function ChatWindow({
             rootClassName="chat-sender"
             value={draft}
             loading={isSending}
-            placeholder="输入你的问题；Enter 发送，Shift + Enter 换行"
+            placeholder={isMobile ? "输入你的问题" : "输入你的问题；Enter 发送，Shift + Enter 换行"}
             prefix={
               <Button
                 type="text"
