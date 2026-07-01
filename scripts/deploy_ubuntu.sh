@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #
-# Lightweight dev-server runner for an Ubuntu host that already has the
-# environment installed. It pulls code and starts/restarts the backend + Vite
-# frontend with pid files and logs.
+# Lightweight server runner for an Ubuntu host that already has the environment
+# installed. It pulls code and starts/restarts the backend + frontend with pid
+# files and logs. The default frontend mode is Vite preview (built assets),
+# which is much faster over a remote network than Vite dev server.
 #
 # Usage:
 #   bash scripts/deploy_ubuntu.sh restart
@@ -12,6 +13,7 @@
 #
 # Common overrides:
 #   BRANCH=main BACKEND_PORT=8000 FRONTEND_PORT=5173 bash scripts/deploy_ubuntu.sh restart
+#   FRONTEND_MODE=dev bash scripts/deploy_ubuntu.sh restart
 
 set -Eeuo pipefail
 IFS=$'\n\t'
@@ -22,6 +24,9 @@ BACKEND_HOST="${BACKEND_HOST:-0.0.0.0}"
 BACKEND_PORT="${BACKEND_PORT:-8000}"
 FRONTEND_HOST="${FRONTEND_HOST:-0.0.0.0}"
 FRONTEND_PORT="${FRONTEND_PORT:-5173}"
+FRONTEND_MODE="${FRONTEND_MODE:-preview}"
+WENJIA_BACKEND_TARGET="${WENJIA_BACKEND_TARGET:-http://127.0.0.1:${BACKEND_PORT}}"
+export WENJIA_BACKEND_TARGET
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FRONTEND_DIR="${ROOT_DIR}/apps/web/frontend"
@@ -114,12 +119,24 @@ start_frontend() {
     return 0
   fi
 
-  log "Starting frontend on ${FRONTEND_HOST}:${FRONTEND_PORT}."
   cd "${FRONTEND_DIR}"
-  nohup setsid npm run dev -- \
-    --host "${FRONTEND_HOST}" \
-    --port "${FRONTEND_PORT}" \
-    >"${FRONTEND_LOG}" 2>&1 &
+  if [[ "${FRONTEND_MODE}" == "preview" ]]; then
+    log "Building frontend for preview mode."
+    npm run build >>"${FRONTEND_LOG}" 2>&1
+    log "Starting frontend preview on ${FRONTEND_HOST}:${FRONTEND_PORT}."
+    nohup setsid npm run preview -- \
+      --host "${FRONTEND_HOST}" \
+      --port "${FRONTEND_PORT}" \
+      >>"${FRONTEND_LOG}" 2>&1 &
+  elif [[ "${FRONTEND_MODE}" == "dev" ]]; then
+    log "Starting frontend dev server on ${FRONTEND_HOST}:${FRONTEND_PORT}."
+    nohup setsid npm run dev -- \
+      --host "${FRONTEND_HOST}" \
+      --port "${FRONTEND_PORT}" \
+      >>"${FRONTEND_LOG}" 2>&1 &
+  else
+    die "Unknown FRONTEND_MODE: ${FRONTEND_MODE}. Use preview or dev."
+  fi
   echo $! >"${FRONTEND_PID}"
   sleep 1
   is_running "${FRONTEND_PID}" || die "Frontend failed to start. See ${FRONTEND_LOG}."
@@ -159,7 +176,7 @@ status_all() {
   status_one "backend" "${BACKEND_PID}" "${BACKEND_LOG}"
   status_one "frontend" "${FRONTEND_PID}" "${FRONTEND_LOG}"
   log "Backend URL:  http://${BACKEND_HOST}:${BACKEND_PORT}"
-  log "Frontend URL: http://${FRONTEND_HOST}:${FRONTEND_PORT}"
+  log "Frontend URL: http://${FRONTEND_HOST}:${FRONTEND_PORT} (${FRONTEND_MODE})"
 }
 
 case "${ACTION}" in

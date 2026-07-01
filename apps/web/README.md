@@ -45,8 +45,9 @@ npm run build      # 输出到 apps/web/frontend/dist/
 托管 `dist/` 并确保它能访问到后端——要么把前后端放在同一个反向代理后（同源），
 要么用 `WENJIA_CORS_ORIGINS` 放行前端来源。
 
-如果 Ubuntu 服务器已经装好 Python / Poetry / Node，并且已经拉好仓库，可以用轻量脚本启动或重启开发服务。
-脚本会拉取远端代码，然后用 pid/log 管理 FastAPI 后端和 Vite 前端：
+如果 Ubuntu 服务器已经装好 Python / Poetry / Node，并且已经拉好仓库，可以用轻量脚本启动或重启服务。
+脚本会拉取远端代码，然后用 pid/log 管理 FastAPI 后端和前端。默认前端使用 `npm run build`
+和 `npm run preview`，远程访问会比 Vite dev server 快很多：
 
 ```bash
 bash scripts/deploy_ubuntu.sh restart
@@ -62,6 +63,11 @@ bash scripts/deploy_ubuntu.sh status
 ```
 
 默认后端监听 `0.0.0.0:8000`，前端监听 `0.0.0.0:5173`；pid 文件在 `.run/`，日志在 `logs/`。
+如果需要热更新调试，可以改用开发模式：
+
+```bash
+FRONTEND_MODE=dev bash scripts/deploy_ubuntu.sh restart
+```
 
 ## 配置
 
