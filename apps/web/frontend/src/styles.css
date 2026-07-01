@@ -1469,6 +1469,14 @@ body {
     padding: 8px 12px 12px;
   }
 
+  .chat-sender .ant-sender-input,
+  .chat-sender textarea,
+  .profile-form .ant-input,
+  .profile-form .ant-input-number-input,
+  .profile-form .ant-select-selection-search-input {
+    font-size: 16px;
+  }
+
   .profile-picker-panel {
     max-height: min(58vh, 460px);
     padding: 12px;
