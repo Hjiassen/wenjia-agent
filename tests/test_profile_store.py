@@ -2,8 +2,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.runtime import profile_store
-from app.runtime.run_context import WenjiaRunContext
+from wenjia_agent.runtime import profile_store
+from wenjia_agent.runtime.run_context import WenjiaRunContext
 
 
 @pytest.fixture()
@@ -22,7 +22,7 @@ def temp_db(tmp_path, monkeypatch):
 
 
 def _bazi_and_context():
-    from app.tools.bazi_tools import build_bazi_context_data
+    from wenjia_agent.tools.bazi_tools import build_bazi_context_data
 
     built = build_bazi_context_data(
         name="测试",
@@ -75,6 +75,53 @@ def test_profiles_are_scoped_by_session(temp_db):
     assert profile_store.list_profiles("web:s2")[0]["relationship_type"] == "父亲"
 
 
+def test_manual_profile_create_and_edit(temp_db):
+    created = profile_store.upsert_manual_profile(
+        "web:s1",
+        {
+            "name": "手动人物",
+            "relationship_type": "朋友",
+            "gender": "未知",
+            "birth_year": 1990,
+            "birth_month": 1,
+            "birth_day": 2,
+            "birth_hour": 3,
+            "birth_minute": 4,
+            "calendar_type": "solar",
+            "is_leap_month": False,
+            "province": "北京市",
+            "city": "北京市",
+        },
+    )
+
+    assert created["name"] == "手动人物"
+    assert created["birth"]["year"] == 1990
+
+    updated = profile_store.upsert_manual_profile(
+        "web:s1",
+        {
+            "name": "手动人物2",
+            "relationship_type": "本人",
+            "gender": "男",
+            "birth_year": 1990,
+            "birth_month": 1,
+            "birth_day": 2,
+            "birth_hour": 3,
+            "birth_minute": 4,
+            "calendar_type": "solar",
+            "is_leap_month": False,
+            "province": "北京市",
+            "city": "北京市",
+        },
+        profile_id=created["id"],
+    )
+
+    assert updated["id"] == created["id"]
+    assert updated["name"] == "手动人物2"
+    assert updated["relationship_type"] == "本人"
+    assert len(profile_store.list_profiles("web:s1")) == 1
+
+
 def _birth_args():
     return dict(
         name="测试",
@@ -90,7 +137,7 @@ def _birth_args():
 
 
 def test_save_profile_helper_persists_with_session(temp_db):
-    from app.tools.bazi_tools import _save_profile
+    from wenjia_agent.tools.bazi_tools import _save_profile
 
     result = _save_profile(
         WenjiaRunContext(session_id="web:tool"), "母亲", _birth_args()
@@ -103,7 +150,7 @@ def test_save_profile_helper_persists_with_session(temp_db):
 
 
 def test_save_profile_helper_degrades_without_session(temp_db):
-    from app.tools.bazi_tools import _save_profile
+    from wenjia_agent.tools.bazi_tools import _save_profile
 
     result = _save_profile(WenjiaRunContext(session_id=None), "本人", _birth_args())
 
@@ -113,7 +160,7 @@ def test_save_profile_helper_degrades_without_session(temp_db):
 
 
 def test_autosave_subject_persists_on_successful_chart(temp_db):
-    from app.tools.bazi_tools import _autosave_subject, build_bazi_context_data
+    from wenjia_agent.tools.bazi_tools import _autosave_subject, build_bazi_context_data
 
     built = build_bazi_context_data(**_birth_args())
     ctx = SimpleNamespace(context=WenjiaRunContext(session_id="web:auto"))
@@ -126,7 +173,7 @@ def test_autosave_subject_persists_on_successful_chart(temp_db):
 
 
 def test_autosave_subject_skips_cached_results(temp_db):
-    from app.tools.bazi_tools import _autosave_subject, build_bazi_context_data
+    from wenjia_agent.tools.bazi_tools import _autosave_subject, build_bazi_context_data
 
     built = build_bazi_context_data(**_birth_args())
     cached = {**built, "from_cache": True}

@@ -26,29 +26,25 @@ poetry run python examples\cli_bazi.py
 poetry run python examples\cli_agent.py
 ```
 
-## 运行 Web Demo
+## 运行 Web App
 
-Web Demo 是 React + TypeScript（Vite）单页应用，构建产物已提交到 `examples/web/static/`。先在 `.env` 填写 `OPENAI_API_KEY`，然后直接启动后端：
+Web App 前后端分离：只提供 API 的 FastAPI 后端 + 独立的 React（Ant Design X）SPA，需分别启动两个进程。
+
+后端（先在 `.env` 填写 `OPENAI_API_KEY`）：
 
 ```powershell
-poetry run uvicorn examples.web.app:app --reload --host 127.0.0.1 --port 8000
+poetry run uvicorn apps.web.backend.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-浏览器打开：
-
-```text
-http://127.0.0.1:8000
-```
-
-修改前端后重新构建（产物输出回 `examples/web/static/`）：
+前端（开发服务器 5173，自动代理 `/api`、`/health` 到后端）：
 
 ```bash
-cd examples/web/frontend
+cd apps/web/frontend
 npm install
-npm run build
+npm run dev
 ```
 
-热更新开发用 `npm run dev`（代理 `/api`、`/health` 到 8000 端口）。
+浏览器打开 http://localhost:5173。生产构建：`npm run build`，产物在 `apps/web/frontend/dist/`。详见 [apps/web/README.md](../apps/web/README.md)。
 
 ## 测试
 
@@ -71,7 +67,7 @@ poetry check
 ## 编译检查
 
 ```powershell
-poetry run python -m compileall app examples tests
+poetry run python -m compileall wenjia_agent examples tests
 ```
 
 ## PR 前检查
@@ -80,17 +76,17 @@ poetry run python -m compileall app examples tests
 poetry check
 poetry run ruff check . --no-cache
 poetry run pytest
-poetry run python -m compileall app examples tests
+poetry run python -m compileall wenjia_agent examples tests
 ```
 
 ## Prompt 模板
 
-Prompt 模板位于 `app/prompts`。
+Prompt 模板位于 `wenjia_agent/prompts`。
 
 规则：
 
 - 不在 Agent 定义中硬编码长 prompt。
-- 使用 `app.prompts.load_prompt` 加载 prompt 文件。
+- 使用 `wenjia_agent.prompts.load_prompt` 加载 prompt 文件。
 - front matter 至少包含 `id`、`version`、`owner`、`status`。
 - prompt 改变行为时，需要补充测试或示例。
 

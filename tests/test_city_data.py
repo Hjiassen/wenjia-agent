@@ -1,4 +1,4 @@
-from app.core.city_data import get_cities, get_city_coordinates, get_provinces
+from wenjia_agent.core.city_data import get_cities, get_city_coordinates, get_provinces
 
 
 def test_city_lookup():

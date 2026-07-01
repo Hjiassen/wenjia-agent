@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [tool.poetry]
-packages = [{ include = "app" }]
+packages = [{ include = "wenjia_agent" }, { include = "apps" }]
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.0"

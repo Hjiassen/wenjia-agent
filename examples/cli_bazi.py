@@ -7,8 +7,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.domain.bazi_adapter import BaziAdapter
-from app.domain.schemas import BirthInfo
+from wenjia_agent.domain.bazi_adapter import BaziAdapter
+from wenjia_agent.domain.schemas import BirthInfo
 
 
 def _configure_stdout() -> None:

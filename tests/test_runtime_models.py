@@ -1,7 +1,7 @@
 from agents import OpenAIChatCompletionsModel, RunConfig
 from openai import AsyncOpenAI
 
-from app.runtime.models import build_run_config
+from wenjia_agent.runtime.models import build_run_config
 
 
 def test_build_run_config_accepts_slash_model_names():

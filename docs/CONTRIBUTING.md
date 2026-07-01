@@ -6,10 +6,10 @@
 
 - 本仓库保持纯 Agent 模块。
 - 不添加账号、认证、支付、订单、会员或运营后台。
-- 八字和历法逻辑放在 `app/core`。
-- Agent-facing adapter 和 schema 放在 `app/domain`。
-- OpenAI Agents SDK function tools 放在 `app/tools`。
-- Prompt 模板放在 `app/prompts`。
+- 八字和历法逻辑放在 `wenjia_agent/core`。
+- Agent-facing adapter 和 schema 放在 `wenjia_agent/domain`。
+- OpenAI Agents SDK function tools 放在 `wenjia_agent/tools`。
+- Prompt 模板放在 `wenjia_agent/prompts`。
 
 ## 开发环境
 
@@ -24,7 +24,7 @@ Copy-Item .env.example .env
 poetry check
 poetry run ruff check . --no-cache
 poetry run pytest
-poetry run python -m compileall app examples tests
+poetry run python -m compileall wenjia_agent examples tests
 ```
 
 ## Pull Request Checklist
@@ -35,7 +35,7 @@ poetry run python -m compileall app examples tests
 - 行为变化需要更新文档。
 - 结构化输出使用 Pydantic schema。
 - 不在工具函数里硬编码 prompt。
-- 不在 Python Agent 文件里硬编码长 instructions，使用 `app/prompts`。
+- 不在 Python Agent 文件里硬编码长 instructions，使用 `wenjia_agent/prompts`。
 - 不引入非 Agent 业务模块。
 
 ## 新工具贡献
@@ -43,7 +43,7 @@ poetry run python -m compileall app examples tests
 新增工具需要包含：
 
 - Pydantic schema 或明确的类型参数。
-- `app/tools` 中的 function tool wrapper。
+- `wenjia_agent/tools` 中的 function tool wrapper。
 - 不带装饰器的内部函数，方便测试。
 - `tests` 下的单元测试。
 - 面向用户的工具需要补充 `docs` 文档。

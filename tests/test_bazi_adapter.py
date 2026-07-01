@@ -1,5 +1,5 @@
-from app.domain.bazi_adapter import BaziAdapter
-from app.domain.schemas import BirthInfo
+from wenjia_agent.domain.bazi_adapter import BaziAdapter
+from wenjia_agent.domain.schemas import BirthInfo
 
 
 def test_calculate_bazi_solar_beijing():

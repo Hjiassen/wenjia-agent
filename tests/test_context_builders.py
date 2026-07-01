@@ -1,6 +1,6 @@
-from app.domain.context_builders import analyze_element_balance, build_bazi_context
-from app.domain.bazi_adapter import BaziAdapter
-from app.domain.schemas import BirthInfo
+from wenjia_agent.domain.context_builders import analyze_element_balance, build_bazi_context
+from wenjia_agent.domain.bazi_adapter import BaziAdapter
+from wenjia_agent.domain.schemas import BirthInfo
 
 
 def test_analyze_element_balance_identifies_dominant_and_missing():

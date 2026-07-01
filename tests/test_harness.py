@@ -1,8 +1,8 @@
 import asyncio
 
-from app.guardrails.output_checks import Issue
-from app.harness.loop import ActOutcome, run_harness
-from app.harness.policy import HarnessPolicy
+from wenjia_agent.guardrails.output_checks import Issue
+from wenjia_agent.harness.loop import ActOutcome, run_harness
+from wenjia_agent.harness.policy import HarnessPolicy
 
 
 def _run(act, verify, policy, on_event=None):

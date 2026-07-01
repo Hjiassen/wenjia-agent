@@ -78,13 +78,13 @@ SDK 能力转换生命周期事件：
 | `list_provinces_tool` | 支持省份查询 |
 | `list_cities_tool` | 支持城市查询 |
 
-## Web Demo 行为
+## Web App 行为
 
-Web Demo 优先调用 `/api/chat/stream`。每个 SSE 事件追加到当前助手消息的
-`flowSteps`，并渲染为可折叠的“推演过程”时间线。收到 `done` 后，前端写入最终
-回答并将完整 `flowSteps` 保存到浏览器历史记录。
-
-如果浏览器不支持流式 body，前端回落到原有 `/api/chat`。
+Web App（`apps/web/frontend`，基于 Ant Design X）调用 `/api/chat/stream`。每个
+SSE 事件通过 `lib/flowModel.ts::buildPipeline` 归约成阶段（stage），并渲染为每条
+助手气泡下方的 **ThoughtChain**（思考链）：`success→success`、`failed→error`、
+`active/pending→带 spinner 的 pending`。收到 `done` 后写入最终回答（Markdown），
+并把完整事件流随消息保存到浏览器历史记录。
 
 ## 边界
 

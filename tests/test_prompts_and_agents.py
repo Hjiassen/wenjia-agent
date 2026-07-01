@@ -1,4 +1,4 @@
-from app.agents import (
+from wenjia_agent.agents import (
     fortune_agent,
     main_agent,
     mystic_tools_agent,
@@ -6,7 +6,7 @@ from app.agents import (
     profile_agent,
     relationship_agent,
 )
-from app.prompts import load_prompt
+from wenjia_agent.prompts import load_prompt
 
 
 def test_prompt_templates_load_and_are_active():

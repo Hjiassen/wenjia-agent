@@ -1,5 +1,5 @@
-from app.domain.schemas import AnalysisSection, FortuneReport
-from app.guardrails.output_checks import (
+from wenjia_agent.domain.schemas import AnalysisSection, FortuneReport
+from wenjia_agent.guardrails.output_checks import (
     check_bazi_consistency,
     check_boundary_note,
     run_output_checks,

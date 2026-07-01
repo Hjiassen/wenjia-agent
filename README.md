@@ -4,63 +4,60 @@
 
 # wenjia-agent
 
-Open-source Chinese metaphysics Agents powered by the OpenAI Agents SDK.
+基于 OpenAI Agents SDK 的开源中文命理 Agent 项目。
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB.svg)](pyproject.toml)
 [![OpenAI Agents SDK](https://img.shields.io/badge/OpenAI-Agents%20SDK-111111.svg)](https://github.com/openai/openai-agents-python)
 
-[English](README.md) | [简体中文](README.zh-CN.md)
+[简体中文](README.md) | [English](README.en.md)
 
 </div>
 
-## Overview
+## 项目简介
 
-The name `wenjia` means “问甲”. `wenjia-agent` is an open-source Agent project
-for Chinese metaphysics scenarios.
-It combines deterministic BaZi calculation, OpenAI Agents SDK orchestration,
-function tools, session memory, structured reports, and prompt templates into a
-lightweight Python project.
+`wenjia` 取“问甲”之意。`wenjia-agent` 面向中文命理场景，将确定性八字计算、OpenAI Agents SDK
+编排、function tools、会话记忆、结构化报告和 Prompt 模板组织成一个轻量、
+可扩展的 Python 工程。
 
-The core idea is simple: deterministic metaphysics data is calculated by local
-tools, while Agents focus on clarification, routing, explanation, and structured
-report generation.
+核心思路很简单：命盘基础数据由本地工具确定性计算，Agent 负责追问、路由、
+解释和结构化报告生成。
 
-## Contents
+## 目录
 
-- [Features](#features)
-- [Agent Topology](#agent-topology)
-- [Quick Start](#quick-start)
-- [Configuration](#configuration)
-- [Python Usage](#python-usage)
-- [Project Layout](#project-layout)
-- [Development](#development)
-- [Documentation](#documentation)
-- [Responsible Use](#responsible-use)
+- [特性](#特性)
+- [Agent 拓扑](#agent-拓扑)
+- [快速开始](#快速开始)
+- [配置](#配置)
+- [Python 用法](#python-用法)
+- [项目结构](#项目结构)
+- [开发](#开发)
+- [文档](#文档)
+- [负责任使用](#负责任使用)
 
-## Features
+## 特性
 
-| Feature | Description |
+| 特性 | 说明 |
 | --- | --- |
-| Multi-agent workflow | A main routing Agent delegates work to specialized Agents. |
-| Birth info gate | Personalized metaphysics requests must provide a complete birth profile before analysis. |
-| Deterministic BaZi core | BaZi pillars, true solar time, five elements, ten gods, NaYin, ShenSha, KongWang, and life-palace fields are calculated locally. |
-| Tool-first reasoning | Agents retrieve chart data through function tools instead of inferring key metaphysics fields directly. |
-| Structured outputs | Fortune, relationship, and naming reports are constrained by Pydantic schemas. |
-| Prompt-as-code | Long prompts live in `app/prompts` for versioned maintenance and community collaboration. |
-| Session memory | Agent conversation memory is backed by `SQLAlchemySession`. |
-| Poetry workflow | CLI examples, tests, linting, and development docs are included. |
+| 多 Agent 工作流 | 主控 Agent 负责路由，专门 Agent 负责具体任务。 |
+| 出生信息门禁 | 个性化命理问题必须先提供完整出生信息，才能继续排盘或分析。 |
+| 确定性八字核心 | 八字、真太阳时、五行、十神、纳音、神煞、空亡、命宫等结果由本地逻辑计算。 |
+| 工具优先推理 | Agent 通过 function tools 获取命盘数据，避免由模型自行推算关键命理字段。 |
+| 结构化输出 | 命格、关系、起名报告使用 Pydantic schema 约束，方便上层应用集成。 |
+| Prompt-as-code | 长提示词位于 `wenjia_agent/prompts`，支持版本化维护和社区协作。 |
+| 会话记忆 | 基于 `SQLAlchemySession` 提供 Agent 会话记忆。 |
+| Poetry 工作流 | 内置 CLI 示例、测试、lint 和开发文档。 |
 
-## Agent Topology
+## Agent 拓扑
 
-| Agent | Responsibility |
+| Agent | 职责 |
 | --- | --- |
-| `WenjiaMainAgent` | Routes user intent and hands off work to specialist Agents. |
-| `ProfileAgent` | Collects birth profile data, looks up cities, and creates basic BaZi charts. |
-| `FortuneAgent` | Generates fortune, career, wealth, relationship, and action-oriented analysis. |
-| `RelationshipAgent` | Analyzes compatibility, relationship patterns, and communication suggestions. |
-| `NamingAgent` | Generates Chinese naming strategies and name suggestions. |
-| `MysticToolsAgent` | Explains tool fields, checks supported locations, and troubleshoots parameters. |
+| `WenjiaMainAgent` | 识别用户意图，并将任务移交给专门 Agent。 |
+| `ProfileAgent` | 收集出生资料、查询城市、生成基础八字命盘。 |
+| `FortuneAgent` | 生成命格、事业、财富、关系和行动建议分析。 |
+| `RelationshipAgent` | 分析合盘、关系模式和沟通建议。 |
+| `NamingAgent` | 生成中文起名策略和名字建议。 |
+| `MysticToolsAgent` | 解释工具字段、查询支持地区、排查参数问题。 |
 
 ```text
 WenjiaMainAgent
@@ -71,14 +68,14 @@ WenjiaMainAgent
   └─ MysticToolsAgent
 ```
 
-## Quick Start
+## 快速开始
 
-### Requirements
+### 环境要求
 
 - Python 3.11+
 - Poetry 1.8+
 
-### Install
+### 安装
 
 Windows PowerShell:
 
@@ -98,10 +95,9 @@ poetry install --with dev
 cp .env.example .env
 ```
 
-### Run the deterministic BaZi demo
+### 运行确定性八字 Demo
 
-This demo calls the local deterministic BaZi core and does not require an API
-key.
+该 Demo 调用本地八字核心，不需要 API key。
 
 Windows PowerShell:
 
@@ -115,7 +111,7 @@ Linux:
 poetry run python examples/cli_bazi.py
 ```
 
-Example output:
+示例输出：
 
 ```text
 四柱八字：
@@ -123,9 +119,9 @@ Example output:
 五行分布： {'木': 3, '火': 6, '土': 1, '金': 3, '水': 3}
 ```
 
-### Run the Agent CLI
+### 运行 Agent CLI
 
-Fill `OPENAI_API_KEY` in `.env` first.
+先在 `.env` 中填写 `OPENAI_API_KEY`。
 
 Windows PowerShell:
 
@@ -139,45 +135,29 @@ Linux:
 poetry run python examples/cli_agent.py
 ```
 
-### Run the Web demo
+### 运行 Web App
 
-The Web demo is a React + TypeScript (Vite) single-page app backed by the same
-Agent runner, rendering the run as a live card pipeline. The built frontend
-assets are committed under `examples/web/static/`, so you can **just start the
-backend**:
+Web App 采用彻底的前后端分离：一个**只提供 API 的 FastAPI 后端**（JSON + SSE），加一个用 [Ant Design X](https://x.ant.design/)（Bubble / Sender / Conversations / ThoughtChain）构建的独立 **React + TypeScript（Vite）SPA**。两个进程分别启动。
 
-Windows PowerShell:
-
-```powershell
-poetry run uvicorn examples.web.app:app --reload --host 127.0.0.1 --port 8000
-```
-
-Linux:
+后端（先在 `.env` 填好 `OPENAI_API_KEY`）：
 
 ```bash
-poetry run uvicorn examples.web.app:app --reload --host 127.0.0.1 --port 8000
+poetry run uvicorn apps.web.backend.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Open:
-
-```text
-http://127.0.0.1:8000
-```
-
-To modify the frontend, rebuild it (output goes back to `examples/web/static/`):
+前端（开发服务器 5173 端口，自动把 `/api`、`/health` 代理到后端）：
 
 ```bash
-cd examples/web/frontend
+cd apps/web/frontend
 npm install
-npm run build
+npm run dev
 ```
 
-For hot-reload development: `npm run dev` (proxies `/api` and `/health` to the
-backend on port 8000). See [examples/web/README.md](examples/web/README.md).
+打开 http://localhost:5173。生产环境执行 `npm run build`，产物在 `apps/web/frontend/dist/`，可托管到任意静态服务；跨域时用 `WENJIA_CORS_ORIGINS` 放行前端来源。详见 [apps/web/README.md](apps/web/README.md)。
 
-## Configuration
+## 配置
 
-Create `.env` from `.env.example` and configure the runtime values:
+从 `.env.example` 创建 `.env`，并配置运行时参数：
 
 ```env
 OPENAI_API_KEY=
@@ -187,19 +167,19 @@ OPENAI_ANALYSIS_MODEL=gpt-4.1-mini
 WENJIA_SESSION_DB_URL=sqlite+aiosqlite:///./wenjia_agent_sessions.db
 ```
 
-## Python Usage
+## Python 用法
 
-### Deterministic calculation
+### 确定性排盘
 
 ```python
-from app.domain.bazi_adapter import BaziAdapter
-from app.domain.schemas import BirthInfo
+from wenjia_agent.domain.bazi_adapter import BaziAdapter
+from wenjia_agent.domain.schemas import BirthInfo
 
 adapter = BaziAdapter()
 result = adapter.calculate(
     BirthInfo(
-        name="Demo",
-        gender="unknown",
+        name="示例",
+        gender="未知",
         birth_year=1995,
         birth_month=5,
         birth_day=12,
@@ -215,18 +195,18 @@ print(result.year_pillar, result.month_pillar, result.day_pillar, result.hour_pi
 print(result.five_elements)
 ```
 
-### Agent runner
+### Agent Runner
 
 ```python
 import asyncio
 
-from app.runtime.runner import run_agent
+from wenjia_agent.runtime.runner import run_agent
 
 
 async def main() -> None:
     response = await run_agent(
         session_id="demo-session",
-        message="Please create a basic BaZi chart for someone born in Beijing at 09:30 on 1995-05-12.",
+        message="帮我看一下 1995 年 5 月 12 日上午 9:30 北京出生的基础命盘。",
     )
     print(response)
 
@@ -234,41 +214,39 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-## Project Layout
+## 项目结构
 
 ```text
-app/
-  agents/      # OpenAI Agents SDK Agent definitions
-  core/        # Deterministic metaphysics logic
-  domain/      # Pydantic schemas, adapters, context builders
-  prompts/     # Versioned prompt templates
-  runtime/     # Settings, runner, session helpers
-  tools/       # OpenAI Agents SDK function tools
-docs/          # Requirements, architecture, design, contribution docs
-examples/      # CLI examples
-  web/         # FastAPI web chat demo
-tests/         # Unit tests
+wenjia_agent/        # 可复用的 Agent 内核（可被 import 的包）
+  agents/            # OpenAI Agents SDK Agent 定义
+  core/              # 确定性命理逻辑
+  domain/            # Pydantic schemas、adapters、context builders
+  prompts/           # 版本化提示词模板
+  runtime/           # 配置、runner、会话辅助
+  tools/             # OpenAI Agents SDK function tools
+apps/                # 一等入口（内核之上的适配器）
+  web/
+    backend/         # 只提供 API 的 FastAPI 服务（JSON + SSE）
+    frontend/        # React + Ant Design X SPA
+docs/                # 需求、架构、设计、贡献文档
+examples/            # CLI 示例
+tests/               # 单元测试
 ```
 
-## Core Design
+## 核心设计
 
-`wenjia-agent` separates deterministic metaphysics calculation from language
-generation:
+`wenjia-agent` 将确定性命理计算和语言生成分离：
 
-1. `app/core` and `app/domain` provide testable and reproducible calculation
-   logic.
-2. `app/agents` and `app/prompts` handle dialogue, clarification, explanation,
-   and structured reports.
+1. `wenjia_agent/core` 与 `wenjia_agent/domain` 提供可测试、可复现的计算逻辑。
+2. `wenjia_agent/agents` 与 `wenjia_agent/prompts` 负责对话、追问、解释和结构化报告。
 
-Key metaphysics fields must come from tools. Agents may explain tool results
-and organize reports, but they should not invent BaZi pillars, five elements,
-ten gods, or ShenSha data.
+关键命理字段必须通过工具获得。Agent 可以解释工具结果、整理报告、补充语境
+和建议，但不直接编造四柱、五行、十神、神煞等基础数据。
 
-Personalized charting, fortune analysis, relationship analysis, naming, and
-advice requests are gated by complete birth information. If required fields are
-missing, Agents keep asking for the missing fields before continuing.
+排盘、命格分析、合盘、起名和个性化建议都需要先经过完整出生信息门禁。
+如果缺少必要字段，Agent 会持续追问缺失信息，再继续处理请求。
 
-## Development
+## 开发
 
 Windows PowerShell:
 
@@ -276,7 +254,7 @@ Windows PowerShell:
 poetry check
 poetry run ruff check . --no-cache
 poetry run pytest
-poetry run python -m compileall app examples tests
+poetry run python -m compileall wenjia_agent examples tests
 ```
 
 Linux:
@@ -285,35 +263,33 @@ Linux:
 poetry check
 poetry run ruff check . --no-cache
 poetry run pytest
-poetry run python -m compileall app examples tests
+poetry run python -m compileall wenjia_agent examples tests
 ```
 
-## Documentation
+## 文档
 
-| Document | Description |
+| 文档 | 说明 |
 | --- | --- |
-| [Requirements](docs/REQUIREMENTS.md) | Product scope and acceptance criteria. |
-| [Agent Proposal](docs/AGENT_PROPOSAL.md) | Agent project positioning and roadmap. |
-| [Software Design](docs/SOFTWARE_DESIGN.md) | Technical design and implementation boundaries. |
-| [Architecture](docs/ARCHITECTURE.md) | Module layout and runtime architecture. |
-| [R&D Process](docs/RD_PROCESS.md) | Development workflow and release process. |
-| [Agent Flow Visualization](docs/AGENT_FLOW_VISUALIZATION.md) | SSE event protocol and Web Demo visualization design. |
-| [Development Guide](docs/DEVELOPMENT.md) | Local setup and day-to-day commands. |
-| [Contributing Guide](docs/CONTRIBUTING.md) | Contribution rules and checklist. |
-| [Tool Plugin Guide](docs/TOOL_PLUGIN_GUIDE.md) | Tool design and extension guide. |
-| [Web Demo](examples/web/README.md) | Browser chat demo usage and endpoints. |
+| [需求报告](docs/REQUIREMENTS.md) | 产品范围和验收标准。 |
+| [Agent 策划书](docs/AGENT_PROPOSAL.md) | Agent 项目定位和路线图。 |
+| [软件设计文档](docs/SOFTWARE_DESIGN.md) | 技术设计和实现边界。 |
+| [架构说明](docs/ARCHITECTURE.md) | 模块布局和运行时架构。 |
+| [研发流程](docs/RD_PROCESS.md) | 开发工作流和发布流程。 |
+| [Agent 流程可视化](docs/AGENT_FLOW_VISUALIZATION.md) | SSE 事件协议和 Web Demo 可视化设计。 |
+| [开发指南](docs/DEVELOPMENT.md) | 本地环境和日常命令。 |
+| [贡献指南](docs/CONTRIBUTING.md) | 贡献规则和检查清单。 |
+| [工具插件指南](docs/TOOL_PLUGIN_GUIDE.md) | 工具设计和扩展指南。 |
+| [Web App](apps/web/README.md) | 前后端分离的 Web 应用用法和接口说明。 |
 
-## Contributing
+## 贡献
 
-Issues, prompt improvements, tool extensions, test cases, and documentation
-updates are welcome. Please read the [Contributing Guide](docs/CONTRIBUTING.md)
-and [Tool Plugin Guide](docs/TOOL_PLUGIN_GUIDE.md) first.
+欢迎提交 issue、Prompt 改进、工具扩展、测试用例和文档更新。建议先阅读
+[贡献指南](docs/CONTRIBUTING.md) 和 [工具插件指南](docs/TOOL_PLUGIN_GUIDE.md)。
 
-## Responsible Use
+## 负责任使用
 
-Metaphysics content is for cultural entertainment and personal reference only.
-For medical, legal, investment, mental health, or other high-stakes issues, use
-real-world judgment and seek qualified professional help.
+命理内容仅作文化娱乐与个人参考。涉及医疗、法律、投资、心理危机等高风险
+问题时，应结合现实情况并寻求专业帮助。
 
 ## License
 

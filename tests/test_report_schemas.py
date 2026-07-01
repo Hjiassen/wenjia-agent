@@ -1,4 +1,4 @@
-from app.domain.schemas import (
+from wenjia_agent.domain.schemas import (
     AnalysisSection,
     FortuneReport,
     NamingReport,

@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
-from app.runtime.run_context import REPEAT_TOOL_NOTE, WenjiaRunContext
-from app.tools.bazi_tools import _dedup_charting
+from wenjia_agent.runtime.run_context import REPEAT_TOOL_NOTE, WenjiaRunContext
+from wenjia_agent.tools.bazi_tools import _dedup_charting
 
 
 def test_cache_miss_then_hit_marks_repeat_and_skips_recompute():

@@ -1,11 +1,11 @@
-from app.domain.schemas import (
+from wenjia_agent.domain.schemas import (
     AnalysisSection,
     FortuneReport,
     NamingReport,
     NamingSuggestion,
     RelationshipReport,
 )
-from app.runtime.output_format import format_final_output
+from wenjia_agent.runtime.output_format import format_final_output
 
 
 def test_plain_string_passes_through():

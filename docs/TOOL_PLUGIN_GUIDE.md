@@ -22,8 +22,8 @@
 
 确定性工具必须：
 
-- 放在 `app/tools`。
-- 调用 `app/core` 或 `app/domain` 中的薄 adapter/context builder。
+- 放在 `wenjia_agent/tools`。
+- 调用 `wenjia_agent/core` 或 `wenjia_agent/domain` 中的薄 adapter/context builder。
 - 相同输入返回稳定输出。
 - 不调用 LLM。
 - 有单元测试。
@@ -32,7 +32,7 @@
 
 生成式能力应通过 Agent 实现，而不是藏在普通工具函数里：
 
-- 使用 `app/prompts` 中的模板。
+- 使用 `wenjia_agent/prompts` 中的模板。
 - 使用 Pydantic schemas 约束结构化输出。
 - 加入解析、导入或数据形状测试。
 - 明确文化娱乐和高风险建议边界。

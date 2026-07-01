@@ -18,9 +18,10 @@ dist/
 build/
 *.egg-info/
 
-# Web demo React frontend
-examples/web/frontend/node_modules/
-examples/web/frontend/dist/
-examples/web/frontend/*.tsbuildinfo
-examples/web/frontend/vite.config.js
-examples/web/frontend/vite.config.d.ts
+# Web app React frontend
+apps/web/frontend/node_modules/
+apps/web/frontend/dist/
+apps/web/frontend/*.tsbuildinfo
+apps/web/frontend/vite.config.js
+apps/web/frontend/vite.config.d.ts
+apps/web/frontend/vite-dev*.log

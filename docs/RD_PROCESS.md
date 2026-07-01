@@ -25,7 +25,7 @@
 poetry check
 poetry run ruff check . --no-cache
 poetry run pytest
-poetry run python -m compileall app examples tests
+poetry run python -m compileall wenjia_agent examples tests
 ```
 
 ## Prompt 评审

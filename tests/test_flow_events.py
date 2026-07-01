@@ -1,4 +1,4 @@
-from app.runtime.flow_events import (
+from wenjia_agent.runtime.flow_events import (
     get_agent_display_name,
     get_tool_display_name,
     is_tool_result_success,

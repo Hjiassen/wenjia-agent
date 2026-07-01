@@ -56,7 +56,7 @@
 - `poetry check` 通过。
 - `poetry run pytest` 通过。
 - `poetry run ruff check . --no-cache` 通过。
-- `poetry run python -m compileall app examples tests` 通过。
+- `poetry run python -m compileall wenjia_agent examples tests` 通过。
 - 所有 Agent 能正常导入。
 - 所有 prompt 模板存在且处于 active 状态。
 - 八字相关结论必须来自工具，不由模型自行推算。
