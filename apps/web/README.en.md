@@ -54,6 +54,16 @@ reverse proxy (same origin) or allow the SPA origin via `WENJIA_CORS_ORIGINS`.
 | --- | --- | --- |
 | `WENJIA_CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Allowed browser origins (comma-separated). |
 | `OPENAI_API_KEY` | — | Required for live Agent runs. |
+| `OPENAI_AGENT_MODEL` | `gpt-4.1-mini` | Lightweight routing, profile collection, and tool-query Agents. |
+| `OPENAI_ANALYSIS_MODEL` | `gpt-4.1-mini` | Specialist analysis Agents for fortune, relationship, and naming. |
+| `OPENAI_FALLBACK_MODEL` | empty | Backup model used when the primary model times out or errors; empty disables fallback. |
+| `WENJIA_INPUT_GUARDRAILS_ENABLED` | `true` | Whether deterministic input guardrails are enabled. |
+| `WENJIA_INPUT_MAX_CHARS` | `8000` | Maximum user input length per turn. |
+| `WENJIA_LONG_TERM_MEMORY_ENABLED` | `true` | Whether cross-session memory keyed by browser `client_id` is enabled. |
+| `WENJIA_LONG_TERM_MEMORY_MAX_ITEMS` | `8` | Maximum long-term memory items injected per turn. |
+| `WENJIA_MODEL_TIMEOUT_SECONDS` | `90` | Timeout for one model run. |
+| `WENJIA_TRACE_ENABLED` | `true` | Whether to write local JSONL run traces. |
+| `WENJIA_TRACE_DIR` | `logs/traces` | Local trace output directory. |
 | `WENJIA_SESSION_DB_URL` | `sqlite+aiosqlite:///./wenjia_agent_sessions.db` | Session/profile store. |
 
 ## Endpoints (API only)

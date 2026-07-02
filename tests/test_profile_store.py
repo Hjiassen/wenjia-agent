@@ -3,6 +3,7 @@ from types import SimpleNamespace
 import pytest
 
 from wenjia_agent.runtime import profile_store
+from wenjia_agent.runtime import memory_store
 from wenjia_agent.runtime.run_context import WenjiaRunContext
 
 
@@ -18,6 +19,9 @@ def temp_db(tmp_path, monkeypatch):
     monkeypatch.setattr(profile_store, "_engine", engine)
     monkeypatch.setattr(profile_store, "_Session", sessionmaker(bind=engine, future=True))
     monkeypatch.setattr(profile_store, "_initialized", False)
+    monkeypatch.setattr(memory_store, "_engine", engine)
+    monkeypatch.setattr(memory_store, "_Session", sessionmaker(bind=engine, future=True))
+    monkeypatch.setattr(memory_store, "_initialized", False)
     return url
 
 
@@ -53,6 +57,17 @@ def test_save_and_list_round_trip(temp_db):
     assert len(profiles) == 1
     assert profiles[0]["name"] == "测试"
     assert set(profiles[0]["five_elements"]) == {"木", "火", "土", "金", "水"}
+
+
+def test_save_profile_mirrors_to_long_term_memory(temp_db):
+    bazi, context = _bazi_and_context()
+
+    profile_store.save_profile("web:s1", "本人", bazi, context, user_id="client:1")
+
+    memories = memory_store.list_memories("client:1")
+    assert len(memories) == 1
+    assert memories[0]["kind"] == "profile"
+    assert "本人：测试" in memories[0]["content"]
 
 
 def test_upsert_does_not_duplicate_same_person(temp_db):

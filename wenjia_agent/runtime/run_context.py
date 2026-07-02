@@ -21,6 +21,8 @@ class WenjiaRunContext:
     """Per-run state passed to ``Runner.run`` / ``Runner.run_streamed``."""
 
     session_id: str | None = None
+    user_id: str | None = None
+    memory_context: str = ""
     tool_cache: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def cache_key(self, tool_name: str, arguments: dict[str, Any]) -> str:

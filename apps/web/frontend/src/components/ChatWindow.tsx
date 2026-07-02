@@ -17,6 +17,7 @@ import { ProfilePanel } from "./ProfilePanel";
 interface PendingState {
   active: boolean;
   body: string;
+  status: string;
   events: FlowEvent[];
   error: boolean;
 }
@@ -124,6 +125,47 @@ function assistantMessageRender(
   );
 }
 
+function pendingAssistantRender(pending: PendingState) {
+  const status = pending.status || "正在整理关键内容";
+  const loadingBlock = (live = false) => (
+    <div
+      className={`assistant-waiting${pending.error ? " is-error" : ""}${
+        live ? " is-live" : ""
+      }`}
+    >
+      <div className="assistant-waiting-head">
+        <span className="analysis-loader" aria-hidden="true">
+          <span className="analysis-loader-core" />
+        </span>
+        <span className="assistant-waiting-copy">
+          <span className="assistant-waiting-title">
+            {pending.error ? "处理遇到问题" : "问甲正在推演"}
+          </span>
+          <span className="assistant-waiting-status">{status}</span>
+        </span>
+      </div>
+      <span className="analysis-progress" aria-hidden="true">
+        <span />
+      </span>
+    </div>
+  );
+  const hasContent = pending.body.trim().length > 0;
+  if (hasContent) {
+    return (
+      <div className="assistant-message-content assistant-live-content" aria-live="polite">
+        {loadingBlock(true)}
+        {markdownRender(pending.body)}
+      </div>
+    );
+  }
+
+  return (
+    <div aria-live="polite">
+      {loadingBlock()}
+    </div>
+  );
+}
+
 export function ChatWindow({
   messages,
   pending,
@@ -190,8 +232,9 @@ export function ChatWindow({
       list.push({
         key: "live",
         role: "assistant",
-        content: pending.body || "正在推演…",
-        loading: pending.events.length === 0,
+        content: pending.body || pending.status || "正在思考",
+        loading: false,
+        messageRender: () => pendingAssistantRender(pending),
       });
     }
     return list;

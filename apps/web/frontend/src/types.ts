@@ -6,7 +6,11 @@ export type FlowEventType =
   | "handoff"
   | "tool_start"
   | "tool_done"
+  | "input_guardrail"
   | "generating"
+  | "answer_delta"
+  | "answer_reset"
+  | "fallback"
   | "revise"
   | "verify"
   | "done"
@@ -29,8 +33,12 @@ export interface FlowEvent {
   tool_call_id?: string;
   display_name?: string;
   success?: boolean;
+  blocked?: boolean;
+  code?: string;
+  category?: string;
   duration?: number;
   content?: string;
+  delta?: string;
   source?: "server" | "client";
 }
 
@@ -44,7 +52,15 @@ export interface ToolItem {
   note?: string;
 }
 
-export type StageKind = "start" | "agent" | "revise" | "verify" | "done" | "interrupted" | "error";
+export type StageKind =
+  | "start"
+  | "agent"
+  | "guardrail"
+  | "revise"
+  | "verify"
+  | "done"
+  | "interrupted"
+  | "error";
 
 export interface FlowStage {
   id: string;

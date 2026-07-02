@@ -173,8 +173,23 @@ OPENAI_API_KEY=
 OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_AGENT_MODEL=gpt-4.1-mini
 OPENAI_ANALYSIS_MODEL=gpt-4.1-mini
+OPENAI_FALLBACK_MODEL=
 WENJIA_SESSION_DB_URL=sqlite+aiosqlite:///./wenjia_agent_sessions.db
+WENJIA_INPUT_GUARDRAILS_ENABLED=true
+WENJIA_INPUT_MAX_CHARS=8000
+WENJIA_LONG_TERM_MEMORY_ENABLED=true
+WENJIA_LONG_TERM_MEMORY_MAX_ITEMS=8
+WENJIA_MODEL_TIMEOUT_SECONDS=90
+WENJIA_TRACE_ENABLED=true
+WENJIA_TRACE_DIR=logs/traces
 ```
+
+- `OPENAI_AGENT_MODEL`: lightweight routing, profile collection, and tool-query Agents.
+- `OPENAI_ANALYSIS_MODEL`: specialist analysis Agents for fortune, relationship, naming, and follow-up suggestions.
+- `OPENAI_FALLBACK_MODEL`: optional backup model used when the primary model times out or errors.
+- `WENJIA_INPUT_GUARDRAILS_ENABLED`: enables deterministic input guardrails for jailbreaks, high-stakes decisions, and unsafe requests.
+- `WENJIA_LONG_TERM_MEMORY_ENABLED`: enables cross-session long-term memory keyed by the caller-supplied `client_id`.
+- `WENJIA_TRACE_DIR`: local JSONL trace directory for inspecting routing, tool calls, latency, usage, and fallback.
 
 ## Python Usage
 
@@ -268,6 +283,7 @@ Windows PowerShell:
 poetry check
 poetry run ruff check . --no-cache
 poetry run pytest
+poetry run python scripts/run_evals.py
 poetry run python -m compileall wenjia_agent examples tests
 ```
 
@@ -277,6 +293,7 @@ Linux:
 poetry check
 poetry run ruff check . --no-cache
 poetry run pytest
+poetry run python scripts/run_evals.py
 poetry run python -m compileall wenjia_agent examples tests
 ```
 

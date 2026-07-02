@@ -17,9 +17,10 @@ def test_web_health():
 
 
 def test_web_chat_stream_uses_agent_stream(monkeypatch):
-    async def fake_stream_agent_events(session_id: str, message: str):
+    async def fake_stream_agent_events(session_id: str, message: str, user_id: str | None = None):
         assert session_id == "web:test-stream"
         assert "事业" in message
+        assert user_id is None
         yield {
             "type": "run_start",
             "session_id": session_id,
@@ -130,9 +131,14 @@ def test_web_profiles_create_and_update(monkeypatch):
 
 
 def test_web_chat_uses_agent_runner(monkeypatch):
-    async def fake_run_agent(session_id: str, message: str) -> str:
+    async def fake_run_agent(
+        session_id: str,
+        message: str,
+        user_id: str | None = None,
+    ) -> str:
         assert session_id == "web:test"
         assert "基础命盘" in message
+        assert user_id is None
         return "fake agent output"
 
     async def run_test() -> None:
@@ -142,6 +148,36 @@ def test_web_chat_uses_agent_runner(monkeypatch):
             response = await client.post(
                 "/api/chat",
                 json={"session_id": "web:test", "message": "基础命盘"},
+            )
+
+        assert response.status_code == 200
+        assert response.json() == {"session_id": "web:test", "output": "fake agent output"}
+
+    asyncio.run(run_test())
+
+
+def test_web_chat_forwards_client_id(monkeypatch):
+    async def fake_run_agent(
+        session_id: str,
+        message: str,
+        user_id: str | None = None,
+    ) -> str:
+        assert session_id == "web:test"
+        assert "基础命盘" in message
+        assert user_id == "client:abc"
+        return "fake agent output"
+
+    async def run_test() -> None:
+        monkeypatch.setattr("apps.web.backend.api.chat.run_agent", fake_run_agent)
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.post(
+                "/api/chat",
+                json={
+                    "session_id": "web:test",
+                    "client_id": "client:abc",
+                    "message": "基础命盘",
+                },
             )
 
         assert response.status_code == 200

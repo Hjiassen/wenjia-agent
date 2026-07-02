@@ -58,12 +58,18 @@ function stageStatusMeta(stage: FlowStage): { text: string; icon: ReactNode } {
   if (stage.kind === "interrupted") {
     return { text: "中止", icon: <CloseCircleFilled /> };
   }
+  if (stage.kind === "guardrail" && stage.status === "failed") {
+    return { text: "拦截", icon: <CloseCircleFilled /> };
+  }
   return STATUS_META[stage.status];
 }
 
 function isCheckpoint(stage: FlowStage): boolean {
   return (
-    (stage.kind === "start" || stage.kind === "verify" || stage.kind === "done") &&
+    (stage.kind === "start" ||
+      stage.kind === "guardrail" ||
+      stage.kind === "verify" ||
+      stage.kind === "done") &&
     !stage.viaHandoff &&
     stage.thinkingSteps.length === 0 &&
     stage.tools.length === 0

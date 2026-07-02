@@ -164,8 +164,23 @@ OPENAI_API_KEY=
 OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_AGENT_MODEL=gpt-4.1-mini
 OPENAI_ANALYSIS_MODEL=gpt-4.1-mini
+OPENAI_FALLBACK_MODEL=
 WENJIA_SESSION_DB_URL=sqlite+aiosqlite:///./wenjia_agent_sessions.db
+WENJIA_INPUT_GUARDRAILS_ENABLED=true
+WENJIA_INPUT_MAX_CHARS=8000
+WENJIA_LONG_TERM_MEMORY_ENABLED=true
+WENJIA_LONG_TERM_MEMORY_MAX_ITEMS=8
+WENJIA_MODEL_TIMEOUT_SECONDS=90
+WENJIA_TRACE_ENABLED=true
+WENJIA_TRACE_DIR=logs/traces
 ```
+
+- `OPENAI_AGENT_MODEL`：主控路由、资料收集、工具查询等轻量 Agent。
+- `OPENAI_ANALYSIS_MODEL`：命格、合盘、起名、推荐问题等正式分析。
+- `OPENAI_FALLBACK_MODEL`：主模型超时或异常时的备用模型；留空则不 fallback。
+- `WENJIA_INPUT_GUARDRAILS_ENABLED`：启用确定性输入护栏，拦截越狱、高风险决策和违法伤害类请求。
+- `WENJIA_LONG_TERM_MEMORY_ENABLED`：启用基于调用方 `client_id` 的跨会话长期记忆。
+- `WENJIA_TRACE_DIR`：本地 JSONL 运行追踪目录，用于查看路由、工具、耗时、usage 和 fallback。
 
 ## Python 用法
 
@@ -254,6 +269,7 @@ Windows PowerShell:
 poetry check
 poetry run ruff check . --no-cache
 poetry run pytest
+poetry run python scripts/run_evals.py
 poetry run python -m compileall wenjia_agent examples tests
 ```
 
@@ -263,6 +279,7 @@ Linux:
 poetry check
 poetry run ruff check . --no-cache
 poetry run pytest
+poetry run python scripts/run_evals.py
 poetry run python -m compileall wenjia_agent examples tests
 ```
 

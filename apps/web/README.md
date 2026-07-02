@@ -75,6 +75,16 @@ FRONTEND_MODE=dev bash scripts/deploy_ubuntu.sh restart
 | --- | --- | --- |
 | `WENJIA_CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | 允许的浏览器来源（逗号分隔）。 |
 | `OPENAI_API_KEY` | — | 实际调用 Agent 所需。 |
+| `OPENAI_AGENT_MODEL` | `gpt-4.1-mini` | 主控路由、资料收集、工具查询等轻量 Agent。 |
+| `OPENAI_ANALYSIS_MODEL` | `gpt-4.1-mini` | 命格、合盘、起名等正式分析 Agent。 |
+| `OPENAI_FALLBACK_MODEL` | 空 | 主模型超时或异常时的备用模型；留空则禁用。 |
+| `WENJIA_INPUT_GUARDRAILS_ENABLED` | `true` | 是否启用输入护栏。 |
+| `WENJIA_INPUT_MAX_CHARS` | `8000` | 单次用户输入最大长度。 |
+| `WENJIA_LONG_TERM_MEMORY_ENABLED` | `true` | 是否启用基于浏览器 `client_id` 的跨会话长期记忆。 |
+| `WENJIA_LONG_TERM_MEMORY_MAX_ITEMS` | `8` | 每轮注入模型的长期记忆条数上限。 |
+| `WENJIA_MODEL_TIMEOUT_SECONDS` | `90` | 单次模型调用超时时间。 |
+| `WENJIA_TRACE_ENABLED` | `true` | 是否写入本地 JSONL 运行追踪。 |
+| `WENJIA_TRACE_DIR` | `logs/traces` | 本地 trace 输出目录。 |
 | `WENJIA_SESSION_DB_URL` | `sqlite+aiosqlite:///./wenjia_agent_sessions.db` | 会话/档案存储。 |
 
 ## 接口（仅 API）

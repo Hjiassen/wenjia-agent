@@ -25,9 +25,10 @@ from sqlalchemy import (
     create_engine,
     select,
 )
-from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from wenjia_agent.runtime.config import settings
+from wenjia_agent.runtime import memory_store
 
 
 class Base(DeclarativeBase):
@@ -126,6 +127,7 @@ def save_profile(
     relationship_type: str,
     bazi: dict[str, Any],
     context: dict[str, Any],
+    user_id: str | None = None,
 ) -> dict[str, Any]:
     """Upsert a profile by (session_id, relationship_type, name).
 
@@ -171,7 +173,21 @@ def save_profile(
             db.add(profile)
         db.commit()
         db.refresh(profile)
-        return _summarize(profile)
+        summary = _summarize(profile)
+
+    if user_id:
+        try:
+            memory_store.remember_profile(
+                user_id,
+                relationship_type,
+                bazi,
+                context,
+                source_session_id=session_id,
+            )
+        except Exception:
+            # Long-term memory is best-effort; never break a deterministic chart.
+            pass
+    return summary
 
 
 def upsert_manual_profile(

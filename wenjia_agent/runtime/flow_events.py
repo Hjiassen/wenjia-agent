@@ -25,6 +25,7 @@ TOOL_DISPLAY_NAMES = {
     "build_luck_cycle_context_tool": "大运流年推算",
     "save_profile_tool": "人物档案保存",
     "list_profiles_tool": "人物档案查询",
+    "list_long_term_memories_tool": "长期记忆查询",
     "list_provinces": "支持省份查询",
     "list_provinces_tool": "支持省份查询",
     "list_cities": "支持城市查询",

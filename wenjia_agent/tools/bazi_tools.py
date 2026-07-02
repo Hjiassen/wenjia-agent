@@ -8,7 +8,7 @@ from wenjia_agent.core.city_data import get_cities, get_provinces
 from wenjia_agent.domain.context_builders import build_bazi_context
 from wenjia_agent.domain.bazi_adapter import BaziAdapter
 from wenjia_agent.domain.schemas import BaziResult, BirthInfo, ToolResult
-from wenjia_agent.runtime import profile_store
+from wenjia_agent.runtime import memory_store, profile_store
 from wenjia_agent.runtime.run_context import WenjiaRunContext
 
 PROFILE_RELATIONSHIPS = {"本人", "父亲", "母亲", "配偶", "孩子", "其他"}
@@ -458,7 +458,13 @@ def _autosave_subject(ctx: RunContextWrapper[WenjiaRunContext] | None, result: d
     if not bazi or not context:
         return
     try:
-        profile_store.save_profile(session_id, "本人", bazi, context)
+        profile_store.save_profile(
+            session_id,
+            "本人",
+            bazi,
+            context,
+            user_id=getattr(run_context, "user_id", None),
+        )
     except Exception:  # noqa: BLE001 - persistence is best-effort, never break charting.
         pass
 
@@ -505,6 +511,7 @@ def _save_profile(
         relationship_type=relationship,
         bazi=bazi,
         context=context,
+        user_id=getattr(run_context, "user_id", None),
     )
     return ToolResult(
         ok=True,
@@ -575,6 +582,23 @@ def _list_profiles(run_context: WenjiaRunContext | None) -> dict:
     ).model_dump()
 
 
+def _list_long_term_memories(run_context: WenjiaRunContext | None) -> dict:
+    user_id = getattr(run_context, "user_id", None) if run_context else None
+    if not user_id:
+        return ToolResult(
+            ok=True,
+            tool_name="list_long_term_memories_tool",
+            data={"memories": []},
+            message="未提供长期记忆标识，无法读取跨会话记忆。",
+        ).model_dump()
+
+    return ToolResult(
+        ok=True,
+        tool_name="list_long_term_memories_tool",
+        data={"memories": memory_store.list_memories(user_id)},
+    ).model_dump()
+
+
 @function_tool
 def list_profiles_tool(ctx: RunContextWrapper[WenjiaRunContext]) -> dict:
     """List person profiles already saved in the current conversation.
@@ -584,6 +608,13 @@ def list_profiles_tool(ctx: RunContextWrapper[WenjiaRunContext]) -> dict:
     """
 
     return _list_profiles(_run_context(ctx))
+
+
+@function_tool
+def list_long_term_memories_tool(ctx: RunContextWrapper[WenjiaRunContext]) -> dict:
+    """List compact memories saved across conversations for this caller-owned user id."""
+
+    return _list_long_term_memories(_run_context(ctx))
 
 
 @function_tool
@@ -606,6 +637,7 @@ BAZI_TOOLS = [
     build_bazi_context_tool,
     build_luck_cycle_context_tool,
     list_profiles_tool,
+    list_long_term_memories_tool,
     list_provinces_tool,
     list_cities_tool,
 ]
@@ -621,6 +653,7 @@ PROFILE_TOOLS = [
     build_luck_cycle_context_tool,
     save_profile_tool,
     list_profiles_tool,
+    list_long_term_memories_tool,
     list_provinces_tool,
     list_cities_tool,
 ]
@@ -633,6 +666,7 @@ NAMING_TOOLS = [
     build_luck_cycle_context_tool,
     save_profile_tool,
     list_profiles_tool,
+    list_long_term_memories_tool,
     list_provinces_tool,
     list_cities_tool,
 ]

@@ -29,6 +29,7 @@ function eventAgentLabel(event: FlowEvent): string | undefined {
 export function buildPipeline(events: FlowEvent[]): FlowStage[] {
   const stages: FlowStage[] = [];
   let current: FlowStage | null = null;
+  let activeTransition: FlowStage | null = null;
   let pendingHandoff: string | undefined;
   let agentSeq = 0;
   let markerSeq = 0;
@@ -44,6 +45,13 @@ export function buildPipeline(events: FlowEvent[]): FlowStage[] {
     current.status = current.tools.some((t) => t.status === "failed") ? "failed" : "success";
     touch(current, event);
     current = null;
+  };
+
+  const finishActiveTransition = (event: FlowEvent, status: StageStatus = "success") => {
+    if (!activeTransition) return;
+    activeTransition.status = status;
+    touch(activeTransition, event);
+    activeTransition = null;
   };
 
   const ensureAgentStage = (event: FlowEvent): FlowStage => {
@@ -75,16 +83,24 @@ export function buildPipeline(events: FlowEvent[]): FlowStage[] {
     label: string,
     status: StageStatus,
     event: FlowEvent,
-  ) => {
+  ): FlowStage => {
     markerSeq += 1;
     const stage = newStage(`${kind}-${markerSeq}`, kind, label, status);
     stage.startedAt = event.timestamp;
     stage.endedAt = event.timestamp;
     stages.push(stage);
     current = null;
+    return stage;
   };
 
   for (const event of events) {
+    if (activeTransition && event.type !== "fallback" && event.type !== "revise") {
+      finishActiveTransition(
+        event,
+        event.type === "error" || event.type === "interrupted" ? "failed" : "success",
+      );
+    }
+
     switch (event.type) {
       case "run_start": {
         const stage = newStage("start", "start", event.message || "开始处理请求", "success");
@@ -154,25 +170,47 @@ export function buildPipeline(events: FlowEvent[]): FlowStage[] {
         touch(stage, event);
         break;
       }
+      case "input_guardrail": {
+        marker(
+          "guardrail",
+          event.message || "输入护栏",
+          event.blocked ? "failed" : "success",
+          event,
+        );
+        break;
+      }
       case "generating": {
         finishCurrentAgent(event, eventAgentLabel(event));
         break;
       }
+      case "answer_delta": {
+        break;
+      }
+      case "answer_reset": {
+        break;
+      }
+      case "fallback": {
+        finishCurrentAgent(event);
+        finishActiveTransition(event);
+        activeTransition = marker("revise", event.message || "切换备用模型", "active", event);
+        break;
+      }
       case "revise": {
-        if (current) {
-          current.status = "failed";
-        }
-        marker("revise", event.message || "修订重试", "active", event);
+        finishCurrentAgent(event);
+        finishActiveTransition(event);
+        activeTransition = marker("revise", event.message || "修订重试", "active", event);
         break;
       }
       case "verify": {
         finishCurrentAgent(event);
+        finishActiveTransition(event);
         const ok = event.success !== false;
         marker("verify", event.message || "结果校验", ok ? "success" : "failed", event);
         break;
       }
       case "done": {
         finishCurrentAgent(event);
+        finishActiveTransition(event);
         marker("done", event.message || "推演完成", "success", event);
         break;
       }
@@ -180,6 +218,7 @@ export function buildPipeline(events: FlowEvent[]): FlowStage[] {
         if (current) {
           current.status = "failed";
         }
+        finishActiveTransition(event, "failed");
         marker("interrupted", event.message || "推演已中止", "failed", event);
         break;
       }
@@ -187,6 +226,7 @@ export function buildPipeline(events: FlowEvent[]): FlowStage[] {
         if (current) {
           current.status = "failed";
         }
+        finishActiveTransition(event, "failed");
         marker("error", event.message || "请求失败", "failed", event);
         break;
       }
@@ -209,7 +249,7 @@ export function pipelineStats(events: FlowEvent[]): PipelineStats {
     toolCount: toolDone.length,
     toolFailures: toolDone.filter((e) => e.success === false).length,
     agentCount: events.filter((e) => e.type === "agent_start").length,
-    reviseCount: events.filter((e) => e.type === "revise").length,
+    reviseCount: events.filter((e) => e.type === "revise" || e.type === "fallback").length,
     verifyPassed: verify ? verify.success !== false : null,
   };
 }
@@ -248,16 +288,23 @@ const STEP_STATUS: Partial<Record<FlowEvent["type"], StageStatus>> = {
   done: "success",
   verify: "success",
   generating: "success",
+  input_guardrail: "success",
   interrupted: "failed",
   error: "failed",
   revise: "active",
+  fallback: "active",
 };
 
 // Flatten events into a chronological, human-readable step log (明细 view).
 export function stepRows(events: FlowEvent[]): StepRow[] {
   return events.map((event, index) => {
     let status: StageStatus | "" = STEP_STATUS[event.type] ?? "";
-    if ((event.type === "tool_done" || event.type === "verify") && event.success === false) {
+    if (
+      (event.type === "tool_done" ||
+        event.type === "verify" ||
+        event.type === "input_guardrail") &&
+      (event.success === false || event.blocked)
+    ) {
       status = "failed";
     }
     return {

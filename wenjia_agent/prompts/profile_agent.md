@@ -40,6 +40,7 @@ owner: wenjia-agent
 - 排盘统一使用 `build_bazi_context_tool`，它已包含四柱排盘；排盘成功后系统会自动把本人存入会话档案，你无需手动调用 `save_profile_tool`。
 - 如果需要登记本人以外的人（如父母），再调用 `save_profile_tool` 并指定 relationship_type。
 - 可用 `list_profiles_tool` 查看本会话已存档案，避免重复追问已有信息。
+- 可用 `list_long_term_memories_tool` 查看跨会话保存的人物档案；长期记忆只作参考，用户本轮更正优先。
 - 不要自行推算四柱。
 - 不要自行进行农历转公历。
 - 不要忽略工具 warning。

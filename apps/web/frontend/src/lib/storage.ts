@@ -3,6 +3,7 @@ import type { ChatMessage, Conversation, FlowEvent } from "../types";
 const activeSessionKey = "wenjia-agent-web-active-session";
 const legacySessionKey = "wenjia-agent-web-session";
 const conversationsKey = "wenjia-agent-web-conversations";
+const clientIdKey = "wenjia-agent-web-client-id";
 
 export function nowIso(): string {
   return new Date().toISOString();
@@ -35,6 +36,16 @@ function fallbackUuid(): string {
 
 export function createSessionId(): string {
   return `web:${fallbackUuid()}`;
+}
+
+export function getClientId(): string {
+  const existing = localStorage.getItem(clientIdKey);
+  if (existing) {
+    return existing;
+  }
+  const created = `client:${fallbackUuid()}`;
+  localStorage.setItem(clientIdKey, created);
+  return created;
 }
 
 export function createConversation(id: string = createSessionId()): Conversation {

@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import type { FlowEvent } from "../types";
+import { getClientId } from "../lib/storage";
 
 export interface StreamResult {
   finalOutput: string;
@@ -10,6 +11,8 @@ export interface StreamResult {
 
 interface StreamCallbacks {
   onEvent: (event: FlowEvent) => void;
+  onAnswerDelta?: (delta: string, text: string) => void;
+  onAnswerReplace?: (text: string) => void;
   onSessionId?: (sessionId: string) => void;
 }
 
@@ -58,6 +61,25 @@ function parseSseChunk(chunk: string): FlowEvent | null {
   }
 }
 
+const ANSWER_FRAME_MS = 32;
+const ANSWER_FRAME_WIDTH = 24;
+
+function displayWidth(char: string): number {
+  return char.charCodeAt(0) > 127 ? 2 : 1;
+}
+
+function takeDisplayChunk(text: string): [string, string] {
+  let width = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    width += displayWidth(char);
+    if (char === "\n" || width >= ANSWER_FRAME_WIDTH) {
+      return [text.slice(0, index + 1), text.slice(index + 1)];
+    }
+  }
+  return [text, ""];
+}
+
 export function useChatStream() {
   const [isSending, setIsSending] = useState(false);
   const sendingRef = useRef(false);
@@ -84,6 +106,7 @@ export function useChatStream() {
 
       const events: FlowEvent[] = [];
       let resolvedSession = sessionId;
+      let stopAnswerAnimation: (() => void) | null = null;
 
       const pushClientEvent = (event: FlowEvent) => {
         events.push(event);
@@ -94,7 +117,7 @@ export function useChatStream() {
         const response = await fetch("/api/chat/stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message, session_id: sessionId }),
+          body: JSON.stringify({ message, session_id: sessionId, client_id: getClientId() }),
           signal: controller.signal,
         });
 
@@ -107,6 +130,80 @@ export function useChatStream() {
         const decoder = new TextDecoder();
         let buffer = "";
         let finalOutput = "";
+        let streamedOutput = "";
+        let displayedOutput = "";
+        let queuedOutput = "";
+        let flushTimer: ReturnType<typeof setTimeout> | null = null;
+        let flushResolvers: Array<() => void> = [];
+
+        const resolveFlushWaiters = () => {
+          if (queuedOutput || flushTimer) {
+            return;
+          }
+          const resolvers = flushResolvers;
+          flushResolvers = [];
+          resolvers.forEach((resolve) => resolve());
+        };
+
+        const scheduleFlush = () => {
+          if (flushTimer) {
+            return;
+          }
+          flushTimer = setTimeout(() => {
+            flushTimer = null;
+            if (!queuedOutput) {
+              resolveFlushWaiters();
+              return;
+            }
+
+            const [chunk, rest] = takeDisplayChunk(queuedOutput);
+            queuedOutput = rest;
+            displayedOutput += chunk;
+            callbacks.onAnswerDelta?.(chunk, displayedOutput);
+
+            if (queuedOutput) {
+              scheduleFlush();
+            } else {
+              resolveFlushWaiters();
+            }
+          }, ANSWER_FRAME_MS);
+        };
+
+        const enqueueAnswer = (delta: string) => {
+          streamedOutput += delta;
+          queuedOutput += delta;
+          scheduleFlush();
+        };
+
+        const resetAnswer = () => {
+          if (flushTimer) {
+            clearTimeout(flushTimer);
+            flushTimer = null;
+          }
+          streamedOutput = "";
+          displayedOutput = "";
+          queuedOutput = "";
+          callbacks.onAnswerReplace?.("");
+          resolveFlushWaiters();
+        };
+
+        const waitForAnswerQueue = async () => {
+          if (!queuedOutput && !flushTimer) {
+            return;
+          }
+          await new Promise<void>((resolve) => {
+            flushResolvers.push(resolve);
+          });
+        };
+
+        stopAnswerAnimation = () => {
+          if (flushTimer) {
+            clearTimeout(flushTimer);
+            flushTimer = null;
+          }
+          queuedOutput = "";
+          resolveFlushWaiters();
+        };
 
         while (true) {
           const { done, value } = await reader.read();
@@ -125,6 +222,20 @@ export function useChatStream() {
               resolvedSession = event.session_id;
               callbacks.onSessionId?.(resolvedSession);
             }
+
+            if (event.type === "answer_delta") {
+              const delta = event.delta || event.content || "";
+              if (delta) {
+                enqueueAnswer(delta);
+              }
+              continue;
+            }
+
+            if (event.type === "answer_reset") {
+              resetAnswer();
+              continue;
+            }
+
             events.push(event);
             callbacks.onEvent(event);
 
@@ -132,7 +243,11 @@ export function useChatStream() {
               if (event.success === false) {
                 throw new StreamFlowError(event.message || "Agent 请求失败。", events, resolvedSession);
               }
-              finalOutput = event.content || "";
+              finalOutput = event.content || streamedOutput;
+              if (finalOutput && finalOutput !== streamedOutput) {
+                resetAnswer();
+                enqueueAnswer(finalOutput);
+              }
             } else if (event.type === "error") {
               throw new StreamFlowError(event.message || "Agent 请求失败。", events, resolvedSession);
             }
@@ -142,6 +257,7 @@ export function useChatStream() {
         if (!finalOutput) {
           throw new Error("Agent 未返回最终内容。");
         }
+        await waitForAnswerQueue();
         return { finalOutput, events, sessionId: resolvedSession };
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
@@ -157,6 +273,7 @@ export function useChatStream() {
         pushClientEvent(makeClientEvent("error", resolvedSession, text));
         throw new StreamFlowError(text, events, resolvedSession);
       } finally {
+        stopAnswerAnimation?.();
         sendingRef.current = false;
         setIsSending(false);
         abortRef.current = null;

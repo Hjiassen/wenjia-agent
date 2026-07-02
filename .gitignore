@@ -8,6 +8,7 @@ venv/
 .env
 .run/
 logs/
+evals/reports/
 *.db
 *.db-shm
 *.db-wal

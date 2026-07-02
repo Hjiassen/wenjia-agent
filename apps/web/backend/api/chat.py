@@ -28,7 +28,11 @@ async def chat(payload: ChatRequest) -> ChatResponse:
 
     session_id = payload.session_id or f"web:{uuid.uuid4()}"
     try:
-        output = await run_agent(session_id=session_id, message=payload.message.strip())
+        output = await run_agent(
+            session_id=session_id,
+            message=payload.message.strip(),
+            user_id=payload.client_id,
+        )
     except RuntimeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001 - web transport boundary.
@@ -61,6 +65,7 @@ async def chat_stream(payload: ChatRequest) -> StreamingResponse:
         async for event in stream_agent_events(
             session_id=session_id,
             message=payload.message.strip(),
+            user_id=payload.client_id,
         ):
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 

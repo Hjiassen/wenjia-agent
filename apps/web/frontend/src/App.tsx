@@ -24,11 +24,43 @@ type HealthStatus = "checking" | "ready" | "error";
 interface PendingState {
   active: boolean;
   body: string;
+  status: string;
   events: FlowEvent[];
   error: boolean;
 }
 
-const IDLE_PENDING: PendingState = { active: false, body: "", events: [], error: false };
+const IDLE_PENDING: PendingState = { active: false, body: "", status: "", events: [], error: false };
+
+function pendingStatusForEvent(event: FlowEvent): string {
+  switch (event.type) {
+    case "run_start":
+      return "正在准备推演";
+    case "agent_start":
+    case "thinking":
+    case "handoff":
+      return "正在理解问题";
+    case "tool_start":
+    case "tool_done":
+      return event.success === false ? "正在调整计算结果" : "正在计算关键数据";
+    case "input_guardrail":
+      return event.blocked ? "输入需要调整" : "正在确认输入";
+    case "generating":
+    case "answer_delta":
+    case "answer_reset":
+      return "正在整理回答";
+    case "revise":
+    case "fallback":
+      return "正在优化回答";
+    case "verify":
+      return event.success === false ? "正在优化回答" : "正在校验结果";
+    case "interrupted":
+      return "已中止";
+    case "error":
+      return "请求失败";
+    case "done":
+      return "推演完成";
+  }
+}
 
 async function fetchSuggestedQuestions(
   sessionId: string,
@@ -225,7 +257,7 @@ export default function App() {
         profileContext: attachedProfiles.map(toAttachedProfile),
       });
       setDraft("");
-      setPending({ active: true, body: "正在连接推演流程…", events: [], error: false });
+      setPending({ active: true, body: "", status: "已发送，正在连接", events: [], error: false });
 
       try {
         const result = await send(agentMessage, activeSession, {
@@ -233,12 +265,24 @@ export default function App() {
             setPending((prev) => ({
               ...prev,
               events: [...prev.events, event],
-              body: event.type === "done" ? prev.body : event.message || prev.body,
+              status: pendingStatusForEvent(event),
               error:
                 prev.error ||
                 event.type === "error" ||
                 event.type === "interrupted" ||
-                event.success === false,
+                (event.success === false && !event.blocked),
+            })),
+          onAnswerDelta: (_delta, text) =>
+            setPending((prev) => ({
+              ...prev,
+              body: text,
+              status: "正在生成回答",
+            })),
+          onAnswerReplace: (text) =>
+            setPending((prev) => ({
+              ...prev,
+              body: text,
+              status: "正在生成回答",
             })),
           onSessionId: (id) => setState((prev) => ({ ...prev, sessionId: id })),
         });

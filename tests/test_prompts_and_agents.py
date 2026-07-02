@@ -66,3 +66,9 @@ def test_specialist_agents_are_configured():
     assert fortune_agent.output_type.__name__ == "FortuneReport"
     assert relationship_agent.output_type.__name__ == "RelationshipReport"
     assert naming_agent.output_type.__name__ == "NamingReport"
+
+
+def test_agents_can_query_long_term_memory():
+    for agent in (main_agent, profile_agent, fortune_agent, relationship_agent, naming_agent):
+        tool_names = {tool.name for tool in agent.tools}
+        assert "list_long_term_memories_tool" in tool_names

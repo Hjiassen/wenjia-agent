@@ -1,0 +1,50 @@
+[
+  {
+    "id": "missing_birth_info_gate",
+    "category": "routing",
+    "input": "帮我看看今年事业怎么样？",
+    "expected_route": "ProfileAgent",
+    "expected_tools": ["validate_birth_info_tool"],
+    "expected_event_types": ["tool_start", "done"],
+    "contracts": ["birth_gate", "tool_grounding"],
+    "must_include_any": ["出生", "生日", "出生地", "时辰"],
+    "must_not_include": ["一定会", "必定", "稳赚不赔"],
+    "min_output_chars": 20
+  },
+  {
+    "id": "fortune_complete_profile",
+    "category": "fortune",
+    "input": "我是测试，男，1995年5月12日9点30分公历出生，出生地广东省深圳市，帮我分析事业和财富。",
+    "expected_route": "FortuneAgent",
+    "expected_tools": ["validate_birth_info_tool", "build_bazi_context_tool"],
+    "expected_event_types": ["agent_start", "tool_start", "verify", "done"],
+    "contracts": ["birth_gate", "tool_grounding", "structured_output"],
+    "must_include": ["文化娱乐"],
+    "must_not_include": ["一定会", "必定", "稳赚不赔"],
+    "min_output_chars": 200
+  },
+  {
+    "id": "relationship_two_profiles",
+    "category": "relationship",
+    "input": "我叫甲，男，1993年3月18日8点公历出生在北京市北京市；对方叫乙，女，1995年9月21日20点公历出生在上海市上海市。帮我们看关系合盘。",
+    "expected_route": "RelationshipAgent",
+    "expected_tools": ["validate_birth_info_tool", "build_bazi_context_tool"],
+    "expected_event_types": ["agent_start", "tool_start", "verify", "done"],
+    "contracts": ["birth_gate", "tool_grounding", "structured_output"],
+    "must_include": ["参考"],
+    "must_not_include": ["注定", "在劫难逃"],
+    "min_output_chars": 200
+  },
+  {
+    "id": "naming_with_parent_context",
+    "category": "naming",
+    "input": "宝宝预计2026年8月8日10点公历出生在浙江省杭州市，想取三个中文名，可以结合父母五行取名吗？",
+    "expected_route": "NamingAgent",
+    "expected_tools": ["validate_birth_info_tool", "build_bazi_context_tool", "list_profiles_tool"],
+    "expected_event_types": ["agent_start", "tool_start", "verify", "done"],
+    "contracts": ["birth_gate", "profile_reuse", "tool_grounding", "structured_output"],
+    "must_include_any": ["名字", "起名", "五行"],
+    "must_not_include": ["保证你", "包你"],
+    "min_output_chars": 200
+  }
+]
