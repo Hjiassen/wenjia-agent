@@ -1883,7 +1883,25 @@ body {
   .profile-form .ant-input,
   .profile-form .ant-input-number-input,
   .profile-form .ant-cascader,
-  .profile-form .ant-select-selection-search-input {
+  .profile-form .ant-select,
+  .profile-form .ant-select-selector,
+  .profile-form .ant-select-selection-item,
+  .profile-form .ant-select-selection-placeholder,
+  .profile-form .ant-select-selection-search-input,
+  .profile-form .ant-select-selection-search-input[type="search"],
+  .profile-form .ant-picker-input > input,
+  .ant-select-dropdown .ant-select-selection-search-input,
+  .ant-cascader-dropdown .ant-select-selection-search-input {
+    font-size: 16px !important;
+  }
+
+  .profile-form .ant-select-single,
+  .profile-form .ant-cascader {
+    line-height: 1.5;
+  }
+
+  .ant-select-dropdown,
+  .ant-cascader-dropdown {
     font-size: 16px;
   }
 
