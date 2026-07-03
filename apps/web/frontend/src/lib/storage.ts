@@ -98,6 +98,27 @@ function makeHistoryTerminalEvent(
   };
 }
 
+function normalizeSuggestions(value: unknown): ChatMessage["suggestions"] {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  return value
+    .map((item) => {
+      if (
+        item &&
+        typeof item === "object" &&
+        typeof (item as { prompt?: unknown }).prompt === "string"
+      ) {
+        return { prompt: (item as { prompt: string }).prompt.trim() };
+      }
+      return null;
+    })
+    .filter((item): item is NonNullable<ChatMessage["suggestions"]>[number] =>
+      Boolean(item?.prompt),
+    );
+}
+
 function normalizeMessage(
   conversationId: string,
   message: unknown,
@@ -120,6 +141,8 @@ function normalizeMessage(
     type: raw.type === "error" ? "error" : "",
     flow: legacyFlow(raw),
     createdAt: typeof raw.createdAt === "string" ? raw.createdAt : nowIso(),
+    suggestions: normalizeSuggestions(raw.suggestions),
+    suggestionsLoading: false,
   };
 
   if (normalized.role === "assistant" && normalized.type === "error") {
@@ -134,6 +157,19 @@ function normalizeMessage(
   }
 
   return normalized;
+}
+
+function messageForStorage(message: ChatMessage): ChatMessage {
+  const stored = { ...message };
+  delete stored.suggestionsLoading;
+  return stored;
+}
+
+function conversationForStorage(conversation: Conversation): Conversation {
+  return {
+    ...conversation,
+    messages: conversation.messages.map(messageForStorage),
+  };
 }
 
 function normalizeConversation(value: unknown): Conversation | null {
@@ -177,7 +213,7 @@ export function loadConversations(): Conversation[] {
 }
 
 export function saveConversations(conversations: Conversation[]): void {
-  localStorage.setItem(conversationsKey, JSON.stringify(conversations));
+  localStorage.setItem(conversationsKey, JSON.stringify(conversations.map(conversationForStorage)));
 }
 
 export function loadActiveSessionId(): string | null {

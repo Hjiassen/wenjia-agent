@@ -38,6 +38,7 @@ interface PendingState {
 const IDLE_PENDING: PendingState = { active: false, body: "", status: "", events: [], error: false };
 let mobileInstallSuggestionShownThisLoad = false;
 const KEYBOARD_OPEN_THRESHOLD = 80;
+const SUGGESTION_TIMEOUT_MS = 20_000;
 
 function installGuideFor(target: PwaInstallTarget): {
   title: string;
@@ -115,41 +116,50 @@ async function fetchSuggestedQuestions(
   userMessage: string,
   assistantMessage: string,
 ): Promise<SuggestedQuestion[]> {
-  const response = await fetch("/api/chat/suggestions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      session_id: sessionId,
-      user_message: userMessage,
-      assistant_message: assistantMessage,
-    }),
-  });
-  if (!response.ok) {
-    return [];
-  }
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), SUGGESTION_TIMEOUT_MS);
+  try {
+    const response = await fetch("/api/chat/suggestions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        session_id: sessionId,
+        user_message: userMessage,
+        assistant_message: assistantMessage,
+      }),
+    });
+    if (!response.ok) {
+      return [];
+    }
 
-  const payload = await response.json().catch(() => null);
-  if (!payload || !Array.isArray(payload.suggestions)) {
-    return [];
-  }
+    const payload = await response.json().catch(() => null);
+    if (!payload || !Array.isArray(payload.suggestions)) {
+      return [];
+    }
 
-  const rawSuggestions: unknown[] = payload.suggestions;
-  return rawSuggestions
-    .map((item) => {
-      if (typeof item === "string") {
-        return { prompt: item.trim() };
-      }
-      if (
-        item &&
-        typeof item === "object" &&
-        typeof (item as SuggestedQuestion).prompt === "string"
-      ) {
-        return { prompt: (item as SuggestedQuestion).prompt.trim() };
-      }
-      return { prompt: "" };
-    })
-    .filter((item) => item.prompt)
-    .slice(0, 3);
+    const rawSuggestions: unknown[] = payload.suggestions;
+    return rawSuggestions
+      .map((item) => {
+        if (typeof item === "string") {
+          return { prompt: item.trim() };
+        }
+        if (
+          item &&
+          typeof item === "object" &&
+          typeof (item as SuggestedQuestion).prompt === "string"
+        ) {
+          return { prompt: (item as SuggestedQuestion).prompt.trim() };
+        }
+        return { prompt: "" };
+      })
+      .filter((item) => item.prompt)
+      .slice(0, 3);
+  } catch {
+    return [];
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 }
 
 function initialState(): { conversations: Conversation[]; sessionId: string } {
@@ -160,6 +170,16 @@ function initialState(): { conversations: Conversation[]; sessionId: string } {
     return { conversations, sessionId: stored };
   }
   return { conversations, sessionId: stored ?? createSessionId() };
+}
+
+function previousUserPrompt(messages: ChatMessage[], assistantIndex: number): string {
+  for (let index = assistantIndex - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message.role === "user") {
+      return message.body;
+    }
+  }
+  return "";
 }
 
 export default function App() {
@@ -176,6 +196,7 @@ export default function App() {
   const { canInstall, installTarget, promptInstall } = usePwaInstall();
   const { modal } = AntdApp.useApp();
   const installActionRef = useRef<() => Promise<void> | void>(() => undefined);
+  const suggestionRequestsRef = useRef<Set<string>>(new Set());
   const screens = Grid.useBreakpoint();
   // `md` is unset until the first measurement; treat only an explicit false as mobile.
   const isMobile = screens.md === false;
@@ -398,6 +419,52 @@ export default function App() {
     },
     [],
   );
+
+  useEffect(() => {
+    const conversation = conversations.find((item) => item.id === sessionId);
+    if (!conversation) {
+      return;
+    }
+
+    for (let index = conversation.messages.length - 1; index >= 0; index -= 1) {
+      const message = conversation.messages[index];
+      if (message.role !== "assistant") {
+        continue;
+      }
+      if (
+        message.type === "error" ||
+        !message.body.trim() ||
+        Array.isArray(message.suggestions) ||
+        message.suggestionsLoading
+      ) {
+        return;
+      }
+
+      const userMessage = previousUserPrompt(conversation.messages, index);
+      if (!userMessage) {
+        return;
+      }
+
+      const requestKey = `${conversation.id}:${message.createdAt}`;
+      if (suggestionRequestsRef.current.has(requestKey)) {
+        return;
+      }
+
+      suggestionRequestsRef.current.add(requestKey);
+      updateMessage(conversation.id, message.createdAt, { suggestionsLoading: true });
+      void fetchSuggestedQuestions(conversation.id, userMessage, message.body)
+        .then((suggestions) =>
+          updateMessage(conversation.id, message.createdAt, {
+            suggestions,
+            suggestionsLoading: false,
+          }),
+        )
+        .finally(() => {
+          suggestionRequestsRef.current.delete(requestKey);
+        });
+      return;
+    }
+  }, [conversations, sessionId, updateMessage]);
 
   const handleSubmit = useCallback(
     async (message: string, attachedProfiles: Profile[] = []) => {
