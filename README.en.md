@@ -7,10 +7,13 @@
 Open-source Chinese metaphysics Agents powered by the OpenAI Agents SDK.
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
+[![CI](https://github.com/Hjiassen/wenjia-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Hjiassen/wenjia-agent/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB.svg)](pyproject.toml)
 [![OpenAI Agents SDK](https://img.shields.io/badge/OpenAI-Agents%20SDK-111111.svg)](https://github.com/openai/openai-agents-python)
 
 [简体中文](README.md) | [English](README.en.md)
+
+[Live Demo](https://www.jiajiahome.top/) | [Deployment Guide](docs/DEPLOYMENT.md) | [Web App](apps/web/README.en.md)
 
 </div>
 
@@ -28,6 +31,9 @@ report generation.
 
 ## Contents
 
+- [Live Demo](#live-demo)
+- [Who This Is For](#who-this-is-for)
+- [Web App Preview](#web-app-preview)
 - [Features](#features)
 - [Agent Topology](#agent-topology)
 - [Quick Start](#quick-start)
@@ -35,8 +41,34 @@ report generation.
 - [Python Usage](#python-usage)
 - [Project Layout](#project-layout)
 - [Development](#development)
+- [Deployment](#deployment)
 - [Documentation](#documentation)
 - [Responsible Use](#responsible-use)
+
+## Live Demo
+
+Try the hosted web app:
+
+https://www.jiajiahome.top/
+
+The demo showcases browser chat, the profile panel, long-term memory, and Agent
+flow visualization. Public deployers should add their own authentication, rate
+limits, log retention policy, and cost controls.
+
+## Who This Is For
+
+- Developers learning OpenAI Agents SDK multi-agent orchestration, handoffs,
+  function tools, and structured outputs.
+- Agent app builders who want to separate deterministic domain logic from LLM
+  dialogue and explanation.
+- Engineers looking for a FastAPI + React + SSE streaming chat reference with
+  flow visualization, PWA behavior, and deployment scripts.
+- People building open-source prompts, tools, or product prototypes around
+  Chinese metaphysics culture.
+
+## Web App Preview
+
+![wenjia-agent Web App preview](docs/assets/web-app-preview.svg)
 
 ## Features
 
@@ -77,6 +109,8 @@ WenjiaMainAgent
 
 - Python 3.11+
 - Poetry 1.8+
+- Node.js 20+ for the Web frontend
+- Docker / Docker Compose for optional containerized runs
 
 ### Install
 
@@ -162,7 +196,9 @@ npm run dev
 
 Open http://localhost:5173. For production, `npm run build` emits a static SPA in
 `apps/web/frontend/dist/` to host anywhere; allow its origin via
-`WENJIA_CORS_ORIGINS`. See [apps/web/README.md](apps/web/README.md).
+`WENJIA_CORS_ORIGINS`. See [apps/web/README.en.md](apps/web/README.en.md).
+
+Live demo: https://www.jiajiahome.top/
 
 ## Configuration
 
@@ -174,7 +210,12 @@ OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_AGENT_MODEL=gpt-4.1-mini
 OPENAI_ANALYSIS_MODEL=gpt-4.1-mini
 OPENAI_FALLBACK_MODEL=
+WENJIA_CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,https://www.jiajiahome.top
 WENJIA_SESSION_DB_URL=sqlite+aiosqlite:///./wenjia_agent_sessions.db
+WENJIA_SESSION_HISTORY_LIMIT=40
+WENJIA_HARNESS_MAX_TURNS=16
+WENJIA_HARNESS_MAX_REVISIONS=1
+WENJIA_HARNESS_REVISE=true
 WENJIA_INPUT_GUARDRAILS_ENABLED=true
 WENJIA_INPUT_MAX_CHARS=8000
 WENJIA_LONG_TERM_MEMORY_ENABLED=true
@@ -182,14 +223,19 @@ WENJIA_LONG_TERM_MEMORY_MAX_ITEMS=8
 WENJIA_MODEL_TIMEOUT_SECONDS=90
 WENJIA_TRACE_ENABLED=true
 WENJIA_TRACE_DIR=logs/traces
+WENJIA_OPENAI_SDK_TRACING=false
 ```
 
 - `OPENAI_AGENT_MODEL`: lightweight routing, profile collection, and tool-query Agents.
 - `OPENAI_ANALYSIS_MODEL`: specialist analysis Agents for fortune, relationship, naming, and follow-up suggestions.
 - `OPENAI_FALLBACK_MODEL`: optional backup model used when the primary model times out or errors.
+- `WENJIA_CORS_ORIGINS`: browser origins allowed to call the backend; restrict this to real deployment domains.
+- `WENJIA_SESSION_HISTORY_LIMIT`: maximum recent session items retrieved for each turn.
+- `WENJIA_HARNESS_*`: controls maximum harness turns, revision count, and whether revision is enabled.
 - `WENJIA_INPUT_GUARDRAILS_ENABLED`: enables deterministic input guardrails for jailbreaks, high-stakes decisions, and unsafe requests.
 - `WENJIA_LONG_TERM_MEMORY_ENABLED`: enables cross-session long-term memory keyed by the caller-supplied `client_id`.
 - `WENJIA_TRACE_DIR`: local JSONL trace directory for inspecting routing, tool calls, latency, usage, and fallback.
+- `WENJIA_OPENAI_SDK_TRACING`: enables OpenAI Agents SDK tracing; local JSONL tracing works independently by default.
 
 ## Python Usage
 
@@ -285,6 +331,8 @@ poetry run ruff check . --no-cache
 poetry run pytest
 poetry run python scripts/run_evals.py
 poetry run python -m compileall wenjia_agent examples tests
+cd apps/web/frontend
+npm run build
 ```
 
 Linux:
@@ -295,7 +343,30 @@ poetry run ruff check . --no-cache
 poetry run pytest
 poetry run python scripts/run_evals.py
 poetry run python -m compileall wenjia_agent examples tests
+cd apps/web/frontend
+npm run build
 ```
+
+## Deployment
+
+See the full [Deployment Guide](docs/DEPLOYMENT.md). The repository includes
+three public deployment paths:
+
+- `scripts/deploy_ubuntu.sh`: lightweight preview runner for servers that
+  already have Python / Poetry / Node installed.
+- `scripts/deploy_static_nginx.sh` + [nginx.example.conf](docs/deploy/nginx.example.conf):
+  Nginx serves the static frontend and proxies FastAPI.
+- [compose.yaml](compose.yaml): starts a backend container and frontend Nginx
+  container with one command.
+
+Docker Compose:
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+Open http://localhost:8080.
 
 ## Documentation
 
@@ -308,21 +379,29 @@ poetry run python -m compileall wenjia_agent examples tests
 | [R&D Process](docs/RD_PROCESS.md) | Development workflow and release process. |
 | [Agent Flow Visualization](docs/AGENT_FLOW_VISUALIZATION.md) | SSE event protocol and Web Demo visualization design. |
 | [Development Guide](docs/DEVELOPMENT.md) | Local setup and day-to-day commands. |
+| [Deployment Guide](docs/DEPLOYMENT.md) | Local, Ubuntu, Nginx, and Docker Compose deployment. |
 | [Contributing Guide](docs/CONTRIBUTING.md) | Contribution rules and checklist. |
 | [Tool Plugin Guide](docs/TOOL_PLUGIN_GUIDE.md) | Tool design and extension guide. |
-| [Web App](apps/web/README.md) | Front/back-separated web app usage and endpoints. |
+| [Web App](apps/web/README.en.md) | Front/back-separated web app usage and endpoints. |
+| [Security Policy](SECURITY.md) | Vulnerability reporting, sensitive data, and deployment security notes. |
+| [Code of Conduct](CODE_OF_CONDUCT.md) | Community collaboration rules. |
+| [Changelog](CHANGELOG.md) | Version history. |
 
 ## Contributing
 
 Issues, prompt improvements, tool extensions, test cases, and documentation
 updates are welcome. Please read the [Contributing Guide](docs/CONTRIBUTING.md)
-and [Tool Plugin Guide](docs/TOOL_PLUGIN_GUIDE.md) first.
+and [Tool Plugin Guide](docs/TOOL_PLUGIN_GUIDE.md) first. Please also follow the
+[Code of Conduct](CODE_OF_CONDUCT.md). Report security issues privately
+according to the [Security Policy](SECURITY.md).
 
 ## Responsible Use
 
 Metaphysics content is for cultural entertainment and personal reference only.
 For medical, legal, investment, mental health, or other high-stakes issues, use
-real-world judgment and seek qualified professional help.
+real-world judgment and seek qualified professional help. Public deployers are
+also responsible for authentication, rate limits, abuse monitoring, cost
+controls, data retention, and compliance.
 
 ## License
 

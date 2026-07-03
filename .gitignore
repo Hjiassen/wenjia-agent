@@ -21,6 +21,12 @@ dist/
 build/
 *.egg-info/
 
+# Local deployment notes and machine-specific Nginx configs
+docs/vibe_coding/*.conf
+docs/vibe_coding/*.bak
+docs/vibe_coding/*.key
+docs/vibe_coding/*.pem
+
 # Web app React frontend
 apps/web/frontend/node_modules/
 apps/web/frontend/dist/

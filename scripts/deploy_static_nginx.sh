@@ -17,6 +17,7 @@
 #
 # Common overrides:
 #   WEB_ROOT=/var/www/wenjia-agent BACKEND_PORT=8000 bash scripts/deploy_static_nginx.sh deploy
+#   NGINX_CONF_SOURCE=docs/deploy/nginx.example.conf bash scripts/deploy_static_nginx.sh nginx
 #   BRANCH=main bash scripts/deploy_static_nginx.sh deploy
 
 set -Eeuo pipefail
@@ -29,7 +30,7 @@ BACKEND_PORT="${BACKEND_PORT:-8000}"
 WEB_ROOT="${WEB_ROOT:-/var/www/wenjia-agent}"
 WEB_DIST="${WEB_DIST:-${WEB_ROOT}/dist}"
 WEB_OWNER="${WEB_OWNER:-www-data:www-data}"
-NGINX_CONF_SOURCE="${NGINX_CONF_SOURCE:-docs/vibe_coding/wenjia-agent.jiajiahome.top.conf}"
+NGINX_CONF_SOURCE="${NGINX_CONF_SOURCE:-docs/deploy/nginx.example.conf}"
 NGINX_CONF_TARGET="${NGINX_CONF_TARGET:-/etc/nginx/conf.d/wenjia-agent.conf}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

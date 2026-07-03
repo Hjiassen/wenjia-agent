@@ -6,7 +6,7 @@ A login-free browser chat app for `wenjia-agent`, built as a **fully separated
 front/back stack**:
 
 - **backend/** — an API-only FastAPI service (JSON + SSE). It reuses the agent
-  core in `app/runtime/*` unchanged and serves **no** HTML.
+  core in `wenjia_agent/runtime/*` unchanged and serves **no** HTML.
 - **frontend/** — a standalone React + TypeScript (Vite) SPA built with
   **[Ant Design X](https://x.ant.design/)** (Bubble / Sender / Conversations /
   ThoughtChain), rendering the Agent run as a live chat with an inline
@@ -15,6 +15,8 @@ front/back stack**:
 Same-session Agent memory is keyed by `session_id`; cross-session long-term
 memory is keyed by the browser `client_id`; visible chat history lives in the
 browser's `localStorage`.
+
+Live demo: https://www.jiajiahome.top/
 
 ## Run (two processes)
 
@@ -49,6 +51,24 @@ npm run build      # outputs apps/web/frontend/dist/
 Serve `dist/` and make sure it can reach the backend — either put both behind one
 reverse proxy (same origin) or allow the SPA origin via `WENJIA_CORS_ORIGINS`.
 
+If an Ubuntu server already has Python / Poetry / Node and a repository checkout,
+use the lightweight runner:
+
+```bash
+bash scripts/deploy_ubuntu.sh restart
+bash scripts/deploy_ubuntu.sh status
+```
+
+Or run the backend container plus frontend Nginx container with Docker Compose:
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+Open http://localhost:8080. See the [Deployment Guide](../../docs/DEPLOYMENT.md)
+for Nginx, Docker, and server details.
+
 ## Configuration
 
 | Env var | Default | Purpose |
@@ -59,6 +79,9 @@ reverse proxy (same origin) or allow the SPA origin via `WENJIA_CORS_ORIGINS`.
 | `OPENAI_ANALYSIS_MODEL` | `gpt-4.1-mini` | Specialist analysis Agents for fortune, relationship, and naming. |
 | `OPENAI_FALLBACK_MODEL` | empty | Backup model used when the primary model times out or errors; empty disables fallback. |
 | `WENJIA_SESSION_HISTORY_LIMIT` | `40` | Maximum recent SDK session items retrieved per turn for one `session_id`; set to `0` or lower to disable the limit. |
+| `WENJIA_HARNESS_MAX_TURNS` | `16` | Maximum turns allowed in one harness run. |
+| `WENJIA_HARNESS_MAX_REVISIONS` | `1` | Maximum output revision attempts. |
+| `WENJIA_HARNESS_REVISE` | `true` | Whether harness revision is enabled. |
 | `WENJIA_INPUT_GUARDRAILS_ENABLED` | `true` | Whether deterministic input guardrails are enabled. |
 | `WENJIA_INPUT_MAX_CHARS` | `8000` | Maximum user input length per turn. |
 | `WENJIA_LONG_TERM_MEMORY_ENABLED` | `true` | Whether cross-session memory keyed by browser `client_id` is enabled. |
@@ -66,6 +89,7 @@ reverse proxy (same origin) or allow the SPA origin via `WENJIA_CORS_ORIGINS`.
 | `WENJIA_MODEL_TIMEOUT_SECONDS` | `90` | Timeout for one model run. |
 | `WENJIA_TRACE_ENABLED` | `true` | Whether to write local JSONL run traces. |
 | `WENJIA_TRACE_DIR` | `logs/traces` | Local trace output directory. |
+| `WENJIA_OPENAI_SDK_TRACING` | `false` | Whether to enable OpenAI Agents SDK tracing. |
 | `WENJIA_SESSION_DB_URL` | `sqlite+aiosqlite:///./wenjia_agent_sessions.db` | Session/profile store. |
 
 ## Endpoints (API only)

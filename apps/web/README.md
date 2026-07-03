@@ -13,6 +13,8 @@
 Agent 同会话记忆以 `session_id` 为键；跨会话长期记忆以浏览器 `client_id`
 为键；可见的对话历史保存在浏览器的 `localStorage`。
 
+在线 Demo：https://www.jiajiahome.top/
+
 ## 运行（两个进程）
 
 ### 1. 后端（API，端口 8000）
@@ -70,6 +72,16 @@ bash scripts/deploy_ubuntu.sh status
 FRONTEND_MODE=dev bash scripts/deploy_ubuntu.sh restart
 ```
 
+也可以使用 Docker Compose 启动后端容器和前端 Nginx 容器：
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+打开 http://localhost:8080。更多 Nginx、Docker 和服务器部署说明见
+[部署指南](../../docs/DEPLOYMENT.md)。
+
 ## 配置
 
 | 环境变量 | 默认值 | 用途 |
@@ -80,6 +92,9 @@ FRONTEND_MODE=dev bash scripts/deploy_ubuntu.sh restart
 | `OPENAI_ANALYSIS_MODEL` | `gpt-4.1-mini` | 命格、合盘、起名等正式分析 Agent。 |
 | `OPENAI_FALLBACK_MODEL` | 空 | 主模型超时或异常时的备用模型；留空则禁用。 |
 | `WENJIA_SESSION_HISTORY_LIMIT` | `40` | 每轮从同一 `session_id` 取回的最近会话消息条数；设为 `0` 或负数表示不限制。 |
+| `WENJIA_HARNESS_MAX_TURNS` | `16` | 单次 harness 运行允许的最大轮次。 |
+| `WENJIA_HARNESS_MAX_REVISIONS` | `1` | 输出修订的最大次数。 |
+| `WENJIA_HARNESS_REVISE` | `true` | 是否允许 harness 触发修订。 |
 | `WENJIA_INPUT_GUARDRAILS_ENABLED` | `true` | 是否启用输入护栏。 |
 | `WENJIA_INPUT_MAX_CHARS` | `8000` | 单次用户输入最大长度。 |
 | `WENJIA_LONG_TERM_MEMORY_ENABLED` | `true` | 是否启用基于浏览器 `client_id` 的跨会话长期记忆。 |
@@ -87,6 +102,7 @@ FRONTEND_MODE=dev bash scripts/deploy_ubuntu.sh restart
 | `WENJIA_MODEL_TIMEOUT_SECONDS` | `90` | 单次模型调用超时时间。 |
 | `WENJIA_TRACE_ENABLED` | `true` | 是否写入本地 JSONL 运行追踪。 |
 | `WENJIA_TRACE_DIR` | `logs/traces` | 本地 trace 输出目录。 |
+| `WENJIA_OPENAI_SDK_TRACING` | `false` | 是否启用 OpenAI Agents SDK tracing。 |
 | `WENJIA_SESSION_DB_URL` | `sqlite+aiosqlite:///./wenjia_agent_sessions.db` | 会话/档案存储。 |
 
 ## 接口（仅 API）

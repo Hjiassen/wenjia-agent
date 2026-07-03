@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680" viewBox="0 0 1200 680" role="img" aria-labelledby="title desc">
+  <title id="title">wenjia-agent Web App preview</title>
+  <desc id="desc">A stylized preview of the wenjia-agent chat interface, profile panel, and flow visualization.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f6f1e7"/>
+      <stop offset="0.45" stop-color="#eef4f0"/>
+      <stop offset="1" stop-color="#eef2fb"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#1b8f76"/>
+      <stop offset="1" stop-color="#3264c8"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="22" flood-color="#102030" flood-opacity="0.16"/>
+    </filter>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#d8dfdd" stroke-width="1"/>
+      <circle cx="0" cy="0" r="1.4" fill="#c6cfca"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="680" fill="url(#bg)"/>
+  <rect x="54" y="54" width="1092" height="572" rx="18" fill="#ffffff" filter="url(#shadow)"/>
+  <rect x="54" y="54" width="1092" height="56" rx="18" fill="#15231f"/>
+  <rect x="54" y="92" width="1092" height="18" fill="#15231f"/>
+  <circle cx="86" cy="82" r="7" fill="#f06b5d"/>
+  <circle cx="110" cy="82" r="7" fill="#f5c15f"/>
+  <circle cx="134" cy="82" r="7" fill="#66c982"/>
+  <text x="176" y="88" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="700" fill="#eef7f2">wenjia-agent</text>
+  <rect x="1004" y="70" width="94" height="24" rx="12" fill="#213c35"/>
+  <text x="1020" y="87" font-family="Inter, Arial, sans-serif" font-size="12" fill="#bde7da">Live Demo</text>
+
+  <rect x="78" y="132" width="224" height="472" rx="14" fill="#f8faf8" stroke="#dce5df"/>
+  <text x="102" y="168" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700" fill="#1d2d28">Conversations</text>
+  <rect x="102" y="190" width="176" height="42" rx="10" fill="#e8f4ef"/>
+  <text x="122" y="216" font-family="Inter, Arial, sans-serif" font-size="13" fill="#1b5f50">Basic chart reading</text>
+  <rect x="102" y="246" width="176" height="42" rx="10" fill="#ffffff" stroke="#e1e7e3"/>
+  <text x="122" y="272" font-family="Inter, Arial, sans-serif" font-size="13" fill="#52615c">Relationship notes</text>
+  <rect x="102" y="302" width="176" height="42" rx="10" fill="#ffffff" stroke="#e1e7e3"/>
+  <text x="122" y="328" font-family="Inter, Arial, sans-serif" font-size="13" fill="#52615c">Naming strategy</text>
+
+  <rect x="326" y="132" width="442" height="472" rx="14" fill="#ffffff" stroke="#dce5df"/>
+  <text x="354" y="168" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700" fill="#1d2d28">Chat</text>
+  <rect x="354" y="198" width="298" height="58" rx="16" fill="#eef4f0"/>
+  <text x="376" y="222" font-family="Inter, Arial, sans-serif" font-size="13" fill="#20342e">Please read this birth profile.</text>
+  <text x="376" y="242" font-family="Inter, Arial, sans-serif" font-size="12" fill="#5f716b">1995-05-12 09:30, Beijing</text>
+  <rect x="430" y="284" width="306" height="106" rx="16" fill="#182d28"/>
+  <text x="456" y="313" font-family="Inter, Arial, sans-serif" font-size="13" fill="#ccece1">I will first verify the profile,</text>
+  <text x="456" y="334" font-family="Inter, Arial, sans-serif" font-size="13" fill="#ccece1">calculate the chart with tools, and</text>
+  <text x="456" y="355" font-family="Inter, Arial, sans-serif" font-size="13" fill="#ccece1">then produce a structured report.</text>
+  <rect x="354" y="488" width="382" height="62" rx="18" fill="#f8faf8" stroke="#dce5df"/>
+  <text x="380" y="526" font-family="Inter, Arial, sans-serif" font-size="13" fill="#809089">Ask a follow-up...</text>
+  <rect x="670" y="504" width="38" height="30" rx="15" fill="url(#accent)"/>
+  <path d="M681 519h16M692 512l7 7-7 7" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <rect x="792" y="132" width="330" height="472" rx="14" fill="#f9fbfa" stroke="#dce5df"/>
+  <rect x="814" y="154" width="286" height="204" rx="12" fill="url(#grid)"/>
+  <text x="836" y="186" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700" fill="#1d2d28">Run flow</text>
+  <path d="M858 242 C 906 242, 900 292, 946 292 S 994 342, 1040 342" fill="none" stroke="#2f8f78" stroke-width="3" stroke-linecap="round"/>
+  <rect x="836" y="216" width="92" height="52" rx="12" fill="#ffffff" stroke="#badbcf"/>
+  <text x="854" y="247" font-family="Inter, Arial, sans-serif" font-size="12" fill="#1b5f50">Profile</text>
+  <rect x="914" y="266" width="104" height="52" rx="12" fill="#ffffff" stroke="#badbcf"/>
+  <text x="932" y="297" font-family="Inter, Arial, sans-serif" font-size="12" fill="#1b5f50">Tool call</text>
+  <rect x="1002" y="316" width="88" height="52" rx="12" fill="#ffffff" stroke="#badbcf"/>
+  <text x="1018" y="347" font-family="Inter, Arial, sans-serif" font-size="12" fill="#1b5f50">Report</text>
+
+  <rect x="814" y="382" width="286" height="160" rx="12" fill="#ffffff" stroke="#dce5df"/>
+  <text x="836" y="414" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700" fill="#1d2d28">Profile panel</text>
+  <rect x="836" y="438" width="112" height="12" rx="6" fill="#d7e7e0"/>
+  <rect x="836" y="466" width="218" height="12" rx="6" fill="#e5ece8"/>
+  <rect x="836" y="494" width="178" height="12" rx="6" fill="#e5ece8"/>
+  <rect x="836" y="522" width="230" height="12" rx="6" fill="#e5ece8"/>
+
+  <rect x="78" y="622" width="1044" height="1" fill="#d7dfdc"/>
+</svg>
