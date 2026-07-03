@@ -5,6 +5,7 @@ import { ChatSider } from "./components/ChatSider";
 import { ChatWindow } from "./components/ChatWindow";
 import { RunFlowPanel, type RunFlowTurn } from "./components/RunFlowPanel";
 import { StreamFlowError, useChatStream } from "./hooks/useChatStream";
+import { usePwaInstall } from "./hooks/usePwaInstall";
 import type { ChatMessage, Conversation, FlowEvent, Profile, SuggestedQuestion } from "./types";
 import { buildProfilePrompt, toAttachedProfile } from "./lib/profileText";
 import {
@@ -125,6 +126,7 @@ export default function App() {
   const [siderCollapsed, setSiderCollapsed] = useState(false);
   const [flowOpen, setFlowOpen] = useState(false);
   const { send, cancel, isSending } = useChatStream();
+  const { canInstall, promptInstall } = usePwaInstall();
   const { modal } = AntdApp.useApp();
   const screens = Grid.useBreakpoint();
   // `md` is unset until the first measurement; treat only an explicit false as mobile.
@@ -483,6 +485,7 @@ export default function App() {
           sessionId={sessionId}
           profiles={profiles}
           selectedProfileIds={selectedProfileIds}
+          canInstall={canInstall}
           onDraftChange={setDraft}
           onSelectedProfileIdsChange={setSelectedProfileIds}
           onProfilesChanged={() => loadProfiles(sessionId)}
@@ -490,6 +493,7 @@ export default function App() {
           onCancel={cancel}
           onOpenSider={() => setDrawerOpen(true)}
           onOpenFlow={() => setFlowOpen(true)}
+          onInstall={promptInstall}
         />
 
         <RunFlowPanel

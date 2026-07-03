@@ -244,6 +244,19 @@ body {
   min-width: 0;
 }
 
+.pwa-install-button.ant-btn {
+  border-radius: 8px;
+  background: rgba(15, 118, 110, 0.08);
+  color: var(--teal-dark);
+  font-weight: 700;
+}
+
+.pwa-install-button.ant-btn:hover,
+.pwa-install-button.ant-btn:focus-visible {
+  background: rgba(15, 118, 110, 0.14) !important;
+  color: var(--teal-dark) !important;
+}
+
 .chat-header-title {
   justify-self: center;
   min-width: 0;

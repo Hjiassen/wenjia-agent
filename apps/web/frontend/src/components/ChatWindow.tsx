@@ -3,6 +3,7 @@ import { Bubble, Prompts, Sender, Welcome } from "@ant-design/x";
 import type { BubbleProps } from "@ant-design/x";
 import { Avatar, Badge, Button, Skeleton, Tag } from "antd";
 import {
+  DownloadOutlined,
   IdcardOutlined,
   MenuOutlined,
   NodeIndexOutlined,
@@ -32,6 +33,7 @@ interface ChatWindowProps {
   sessionId: string;
   profiles: Profile[];
   selectedProfileIds: number[];
+  canInstall: boolean;
   onDraftChange: (value: string) => void;
   onSelectedProfileIdsChange: (ids: number[]) => void;
   onProfilesChanged: () => void;
@@ -39,6 +41,7 @@ interface ChatWindowProps {
   onCancel: () => void;
   onOpenSider: () => void;
   onOpenFlow: () => void;
+  onInstall: () => void;
 }
 
 const MAX_LEN = 4000;
@@ -176,6 +179,7 @@ export function ChatWindow({
   sessionId,
   profiles,
   selectedProfileIds,
+  canInstall,
   onDraftChange,
   onSelectedProfileIdsChange,
   onProfilesChanged,
@@ -183,6 +187,7 @@ export function ChatWindow({
   onCancel,
   onOpenSider,
   onOpenFlow,
+  onInstall,
 }: ChatWindowProps) {
   const [profilePickerOpen, setProfilePickerOpen] = useState(false);
   const composerRef = useRef<HTMLDivElement | null>(null);
@@ -315,6 +320,18 @@ export function ChatWindow({
         </div>
         <span className="chat-header-title">命理推演</span>
         <div className="chat-header-actions">
+          {canInstall ? (
+            <Button
+              type="text"
+              icon={<DownloadOutlined />}
+              aria-label="安装到桌面"
+              title="安装到桌面"
+              className="pwa-install-button"
+              onClick={onInstall}
+            >
+              {isMobile ? null : "安装"}
+            </Button>
+          ) : null}
           <Badge dot={isSending} color="#0f766e" offset={[-2, 4]}>
             <Button
               icon={<NodeIndexOutlined />}

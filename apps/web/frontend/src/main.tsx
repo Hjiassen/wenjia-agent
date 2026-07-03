@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { App as AntdApp, ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import App from "./App";
+import { registerServiceWorker } from "./lib/serviceWorker";
 import { theme } from "./theme";
 import "./styles.css";
 
@@ -20,3 +21,5 @@ createRoot(container).render(
     </ConfigProvider>
   </StrictMode>,
 );
+
+registerServiceWorker();
