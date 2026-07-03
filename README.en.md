@@ -8,8 +8,17 @@ Open-source Chinese metaphysics Agents powered by the OpenAI Agents SDK.
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 [![CI](https://github.com/Hjiassen/wenjia-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Hjiassen/wenjia-agent/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Hjiassen/wenjia-agent?label=release&color=2ea44f)](https://github.com/Hjiassen/wenjia-agent/releases)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB.svg)](pyproject.toml)
 [![OpenAI Agents SDK](https://img.shields.io/badge/OpenAI-Agents%20SDK-111111.svg)](https://github.com/openai/openai-agents-python)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-online-0f766e.svg)](https://www.jiajiahome.top/)
+[![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED.svg?logo=docker&logoColor=white)](compose.yaml)
+[![FastAPI](https://img.shields.io/badge/FastAPI-API-009688.svg?logo=fastapi&logoColor=white)](apps/web/backend)
+[![React](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=111111)](apps/web/frontend)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6.svg?logo=typescript&logoColor=white)](apps/web/frontend/package.json)
+[![PWA](https://img.shields.io/badge/PWA-ready-5A0FC8.svg)](apps/web/frontend/public/manifest.webmanifest)
+[![Ruff](https://img.shields.io/badge/Ruff-lint-D7FF64.svg?logo=ruff&logoColor=111111)](pyproject.toml)
+[![pytest](https://img.shields.io/badge/pytest-tested-0A9EDC.svg?logo=pytest&logoColor=white)](tests)
 
 [简体中文](README.md) | [English](README.en.md)
 
