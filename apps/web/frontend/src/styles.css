@@ -257,6 +257,27 @@ body {
   color: var(--teal-dark) !important;
 }
 
+.pwa-install-guide {
+  color: var(--ink);
+}
+
+.pwa-install-guide ol {
+  margin: 8px 0 10px;
+  padding-left: 1.25em;
+}
+
+.pwa-install-guide li {
+  margin: 6px 0;
+  line-height: 1.55;
+}
+
+.pwa-install-guide p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
 .chat-header-title {
   justify-self: center;
   min-width: 0;
@@ -366,7 +387,7 @@ body {
 
 .profile-picker-item {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) 72px;
+  grid-template-columns: 28px minmax(0, 1fr) 72px;
   align-items: flex-start;
   gap: 10px;
   border: 1px solid rgba(31, 42, 46, 0.08);
@@ -394,9 +415,26 @@ body {
 }
 
 .profile-picker-item.is-selected {
-  border-color: rgba(15, 118, 110, 0.58);
-  background: linear-gradient(180deg, rgba(15, 118, 110, 0.1) 0%, rgba(15, 118, 110, 0.05) 100%);
-  box-shadow: inset 3px 0 0 rgba(15, 118, 110, 0.72), 0 10px 24px rgba(31, 42, 46, 0.08);
+  border-color: rgba(15, 118, 110, 0.72);
+  background:
+    linear-gradient(180deg, rgba(236, 253, 245, 0.98) 0%, rgba(240, 253, 250, 0.95) 100%),
+    radial-gradient(circle at 22px 18px, rgba(15, 118, 110, 0.14), rgba(15, 118, 110, 0) 42px);
+  box-shadow: inset 4px 0 0 rgba(15, 118, 110, 0.82), 0 12px 28px rgba(15, 118, 110, 0.12);
+}
+
+.profile-picker-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--teal);
+  font-size: 18px;
+}
+
+.profile-picker-check .ant-checkbox-wrapper,
+.profile-picker-check .ant-checkbox {
+  line-height: 1;
 }
 
 .profile-picker-main {
@@ -418,6 +456,17 @@ body {
   background: rgba(180, 83, 9, 0.1);
   color: var(--gold);
   font-weight: 700;
+  line-height: 21px;
+}
+
+.profile-selected-tag.ant-tag {
+  flex: 0 0 auto;
+  margin-inline-end: 0;
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  border-radius: 7px;
+  background: rgba(15, 118, 110, 0.1);
+  color: var(--teal-dark);
+  font-weight: 800;
   line-height: 21px;
 }
 
@@ -456,7 +505,7 @@ body {
 .profile-form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   padding-top: 4px;
 }
 
@@ -465,15 +514,50 @@ body {
 }
 
 .profile-form .ant-input,
+.profile-form .ant-cascader,
 .profile-form .ant-select-selector,
 .profile-form .ant-segmented {
   border-radius: 8px;
 }
 
+.profile-modal .ant-modal-content {
+  overflow: hidden;
+}
+
+.profile-form-hero {
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(15, 118, 110, 0.1) 0%, rgba(180, 83, 9, 0.08) 100%),
+    #fbfefd;
+  padding: 12px 14px;
+}
+
+.profile-form-hero-kicker {
+  color: rgba(31, 42, 46, 0.56);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.profile-form-hero strong {
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.3;
+}
+
+.profile-form-hero span:last-child {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .profile-form-section {
   border: 1px solid rgba(31, 42, 46, 0.08);
   border-radius: 12px;
-  background: #fbfcfc;
+  background: linear-gradient(180deg, #fff 0%, #fbfcfc 100%);
   padding: 12px 12px 0;
 }
 
@@ -493,6 +577,14 @@ body {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.profile-form-grid.compact {
+  grid-template-columns: minmax(0, 1fr) minmax(118px, 0.7fr);
+}
+
+.profile-form-grid.compact .ant-form-item:only-child {
+  grid-column: 1 / -1;
 }
 
 .profile-form-grid.three {
@@ -1642,6 +1734,16 @@ body {
     display: none;
   }
 
+  .chat-header-actions .pwa-install-button.ant-btn {
+    width: auto;
+    min-width: 58px;
+    padding-inline: 9px;
+  }
+
+  .chat-header-actions .pwa-install-button.ant-btn > span:not(.ant-btn-icon) {
+    display: inline;
+  }
+
   .chat-scroll {
     padding: 16px 12px;
   }
@@ -1654,6 +1756,7 @@ body {
   .chat-sender textarea,
   .profile-form .ant-input,
   .profile-form .ant-input-number-input,
+  .profile-form .ant-cascader,
   .profile-form .ant-select-selection-search-input {
     font-size: 16px;
   }
@@ -1664,7 +1767,7 @@ body {
   }
 
   .profile-picker-item {
-    grid-template-columns: auto minmax(0, 1fr) 62px;
+    grid-template-columns: 26px minmax(0, 1fr) 62px;
     gap: 8px;
     padding: 9px;
   }
@@ -1734,6 +1837,10 @@ body {
   .profile-form-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
+  }
+
+  .profile-form-grid.compact {
+    grid-template-columns: 1fr;
   }
 
   .profile-form-grid.three {

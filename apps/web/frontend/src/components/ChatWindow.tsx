@@ -15,6 +15,16 @@ import { renderMarkdown } from "../lib/markdown";
 import { RECOMMENDED_PROMPTS } from "../lib/prompts";
 import { ProfilePanel } from "./ProfilePanel";
 
+interface BubbleListRef {
+  nativeElement: HTMLDivElement;
+  scrollTo: (info: {
+    offset?: number;
+    key?: string | number;
+    behavior?: ScrollBehavior;
+    block?: ScrollLogicalPosition;
+  }) => void;
+}
+
 interface PendingState {
   active: boolean;
   body: string;
@@ -41,10 +51,11 @@ interface ChatWindowProps {
   onCancel: () => void;
   onOpenSider: () => void;
   onOpenFlow: () => void;
-  onInstall: () => void;
+  onInstall: () => void | Promise<void>;
 }
 
 const MAX_LEN = 4000;
+const LIVE_MESSAGE_KEY = "live";
 
 const roles: Record<string, Partial<BubbleProps>> = {
   user: {
@@ -169,6 +180,22 @@ function pendingAssistantRender(pending: PendingState) {
   );
 }
 
+function messageKey(index: number): string {
+  return `message-${index}`;
+}
+
+function isScrollKey(key: string): boolean {
+  return [
+    "ArrowUp",
+    "ArrowDown",
+    "PageUp",
+    "PageDown",
+    "Home",
+    "End",
+    " ",
+  ].includes(key);
+}
+
 export function ChatWindow({
   messages,
   pending,
@@ -191,6 +218,12 @@ export function ChatWindow({
 }: ChatWindowProps) {
   const [profilePickerOpen, setProfilePickerOpen] = useState(false);
   const composerRef = useRef<HTMLDivElement | null>(null);
+  const bubbleListRef = useRef<BubbleListRef | null>(null);
+  const programmaticScrollRef = useRef(false);
+  const programmaticScrollTimerRef = useRef<number | null>(null);
+  const userScrollLockedRef = useRef(false);
+  const previousSessionRef = useRef(sessionId);
+  const previousLastUserKeyRef = useRef<string | null>(null);
   const selectedProfiles = useMemo(() => {
     const selected = new Set(selectedProfileIds);
     return profiles.filter((profile) => selected.has(profile.id));
@@ -216,7 +249,7 @@ export function ChatWindow({
       const isAssistant = message.role === "assistant";
       const isError = message.type === "error";
       const item: BubbleProps & { key: string | number } = {
-        key: index,
+        key: messageKey(index),
         role: message.role,
         content: message.body,
       };
@@ -235,7 +268,7 @@ export function ChatWindow({
 
     if (pending.active) {
       list.push({
-        key: "live",
+        key: LIVE_MESSAGE_KEY,
         role: "assistant",
         content: pending.body || pending.status || "正在思考",
         loading: false,
@@ -246,6 +279,83 @@ export function ChatWindow({
   }, [messages, pending, isMobile, handleSubmit]);
 
   const showWelcome = messages.length === 0 && !pending.active;
+  const lastUserKey = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      if (messages[index].role === "user") {
+        return messageKey(index);
+      }
+    }
+    return null;
+  }, [messages]);
+
+  const markProgrammaticScroll = useCallback(() => {
+    programmaticScrollRef.current = true;
+    if (programmaticScrollTimerRef.current !== null) {
+      window.clearTimeout(programmaticScrollTimerRef.current);
+    }
+    programmaticScrollTimerRef.current = window.setTimeout(() => {
+      programmaticScrollRef.current = false;
+      programmaticScrollTimerRef.current = null;
+    }, 180);
+  }, []);
+
+  const scrollLastUserToTop = useCallback(
+    (key: string, behavior: ScrollBehavior = "auto") => {
+      if (!bubbleListRef.current) {
+        return;
+      }
+      markProgrammaticScroll();
+      bubbleListRef.current.scrollTo({ key, block: "start", behavior });
+    },
+    [markProgrammaticScroll],
+  );
+
+  const lockAutoScroll = useCallback(() => {
+    if (!programmaticScrollRef.current) {
+      userScrollLockedRef.current = true;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (programmaticScrollTimerRef.current !== null) {
+        window.clearTimeout(programmaticScrollTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!lastUserKey || showWelcome) {
+      return;
+    }
+
+    const sessionChanged = previousSessionRef.current !== sessionId;
+    const userChanged = previousLastUserKeyRef.current !== lastUserKey;
+    if (!sessionChanged && !userChanged) {
+      return;
+    }
+
+    previousSessionRef.current = sessionId;
+    previousLastUserKeyRef.current = lastUserKey;
+    userScrollLockedRef.current = false;
+    const frame = window.requestAnimationFrame(() => {
+      scrollLastUserToTop(lastUserKey);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [lastUserKey, scrollLastUserToTop, sessionId, showWelcome]);
+
+  useEffect(() => {
+    if (!pending.active || !lastUserKey || userScrollLockedRef.current) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      if (!userScrollLockedRef.current) {
+        scrollLastUserToTop(lastUserKey);
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [lastUserKey, pending.active, pending.body, pending.status, scrollLastUserToTop]);
 
   useEffect(() => {
     if (!profilePickerOpen) {
@@ -329,7 +439,7 @@ export function ChatWindow({
               className="pwa-install-button"
               onClick={onInstall}
             >
-              {isMobile ? null : "安装"}
+              安装
             </Button>
           ) : null}
           <Badge dot={isSending} color="#0f766e" offset={[-2, 4]}>
@@ -368,7 +478,20 @@ export function ChatWindow({
               />
             </div>
           ) : (
-            <Bubble.List roles={roles} items={items} autoScroll />
+            <Bubble.List
+              ref={bubbleListRef}
+              roles={roles}
+              items={items}
+              autoScroll={false}
+              onWheel={lockAutoScroll}
+              onTouchStart={lockAutoScroll}
+              onPointerDown={lockAutoScroll}
+              onKeyDown={(event) => {
+                if (isScrollKey(event.key)) {
+                  lockAutoScroll();
+                }
+              }}
+            />
           )}
         </div>
       </div>

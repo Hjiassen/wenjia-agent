@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { KeyboardEvent } from "react";
 import {
   App as AntdApp,
-  AutoComplete,
   Button,
+  Cascader,
   Checkbox,
   Empty,
   Form,
@@ -15,7 +15,7 @@ import {
   Tooltip,
   Typography,
 } from "antd";
-import { EditOutlined, PlusOutlined } from "@ant-design/icons";
+import { CheckCircleFilled, EditOutlined, PlusOutlined } from "@ant-design/icons";
 import type { Profile, ProfilePayload } from "../types";
 import { compactBirth } from "../lib/profileText";
 
@@ -38,79 +38,59 @@ const CALENDAR_OPTIONS = [
   { label: "农历", value: "lunar" },
 ];
 
+type CascaderValue = Array<string | number>;
+interface CascaderOption {
+  label: string;
+  value: string | number;
+  children?: CascaderOption[];
+}
+
 const CURRENT_YEAR = new Date().getFullYear();
-const YEAR_OPTIONS = Array.from({ length: CURRENT_YEAR - 1899 + 6 }, (_, index) => {
+const YEARS = Array.from({ length: CURRENT_YEAR - 1899 + 6 }, (_, index) => {
   const value = 1900 + index;
-  return { label: `${value}年`, value };
+  return value;
 }).reverse();
-const MONTH_OPTIONS = Array.from({ length: 12 }, (_, index) => {
-  const value = index + 1;
-  return { label: `${value}月`, value };
-});
-const DAY_OPTIONS = Array.from({ length: 31 }, (_, index) => {
-  const value = index + 1;
-  return { label: `${value}日`, value };
-});
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, value) => ({
-  label: `${String(value).padStart(2, "0")}时`,
-  value,
+const DATE_OPTIONS: CascaderOption[] = YEARS.map((year) => ({
+  label: `${year}年`,
+  value: year,
+  children: Array.from({ length: 12 }, (_, monthIndex) => {
+    const month = monthIndex + 1;
+    const dayCount = new Date(year, month, 0).getDate();
+    return {
+      label: `${month}月`,
+      value: month,
+      children: Array.from({ length: dayCount }, (_, dayIndex) => {
+        const day = dayIndex + 1;
+        return { label: `${day}日`, value: day };
+      }),
+    };
+  }),
 }));
-const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, value) => ({
-  label: `${String(value).padStart(2, "0")}分`,
-  value,
+const TIME_OPTIONS: CascaderOption[] = Array.from({ length: 24 }, (_, hour) => ({
+  label: `${String(hour).padStart(2, "0")}时`,
+  value: hour,
+  children: Array.from({ length: 60 }, (_, minute) => ({
+    label: `${String(minute).padStart(2, "0")}分`,
+    value: minute,
+  })),
 }));
-const PROVINCE_OPTIONS = [
-  "北京市",
-  "上海市",
-  "天津市",
-  "重庆市",
-  "广东省",
-  "浙江省",
-  "江苏省",
-  "四川省",
-  "湖北省",
-  "湖南省",
-  "河南省",
-  "山东省",
-  "陕西省",
-  "福建省",
-  "辽宁省",
-  "黑龙江省",
-].map((value) => ({ value }));
-const CITY_OPTIONS = [
-  "北京市",
-  "上海市",
-  "天津市",
-  "重庆市",
-  "广州市",
-  "深圳市",
-  "杭州市",
-  "南京市",
-  "成都市",
-  "武汉市",
-  "长沙市",
-  "郑州市",
-  "济南市",
-  "西安市",
-  "福州市",
-  "沈阳市",
-  "哈尔滨市",
-].map((value) => ({ value }));
+const FALLBACK_LOCATION_OPTIONS: CascaderOption[] = ["北京市", "上海市", "天津市", "重庆市"].map(
+  (value) => ({
+    label: value,
+    value,
+    children: [{ label: value, value }],
+  }),
+);
 
 interface ProfileFormValues {
   name: string;
   relationship_type: string;
   gender?: string | null;
-  birth_year?: number | null;
-  birth_month?: number | null;
-  birth_day?: number | null;
-  birth_hour?: number | null;
-  birth_minute?: number | null;
+  birth_date?: CascaderValue;
+  birth_time?: CascaderValue;
   calendar_type?: string | null;
   is_leap_month?: boolean | null;
-  province?: string | null;
-  city?: string | null;
-  longitude?: string | null;
+  location?: CascaderValue;
 }
 
 interface ProfilePanelProps {
@@ -122,21 +102,32 @@ interface ProfilePanelProps {
 }
 
 function toPayload(values: ProfileFormValues): ProfilePayload {
+  const birthDate = values.birth_date ?? [];
+  const birthTime = values.birth_time ?? [];
+  const location = values.location ?? [];
+  const birthHour = typeof birthTime[0] === "number" ? birthTime[0] : null;
+  const birthMinute = typeof birthTime[1] === "number" ? birthTime[1] : null;
+
   return {
     name: values.name.trim(),
     relationship_type: values.relationship_type || "本人",
     gender: values.gender || null,
-    birth_year: values.birth_year ?? null,
-    birth_month: values.birth_month ?? null,
-    birth_day: values.birth_day ?? null,
-    birth_hour: values.birth_hour ?? null,
-    birth_minute: values.birth_minute ?? null,
+    birth_year: typeof birthDate[0] === "number" ? birthDate[0] : null,
+    birth_month: typeof birthDate[1] === "number" ? birthDate[1] : null,
+    birth_day: typeof birthDate[2] === "number" ? birthDate[2] : null,
+    birth_hour: birthHour,
+    birth_minute: birthHour === null ? null : birthMinute ?? 0,
     calendar_type: values.calendar_type || null,
     is_leap_month: values.is_leap_month ?? null,
-    province: values.province?.trim() || null,
-    city: values.city?.trim() || null,
-    longitude: values.longitude?.trim() || null,
+    province: typeof location[0] === "string" ? location[0] : null,
+    city: typeof location[1] === "string" ? location[1] : null,
+    longitude: null,
   };
+}
+
+function compactCascaderValue(parts: Array<string | number | null | undefined>): CascaderValue | undefined {
+  const value = parts.filter((part) => part !== null && part !== undefined) as CascaderValue;
+  return value.length > 0 ? value : undefined;
 }
 
 function fromProfile(profile?: Profile): ProfileFormValues {
@@ -145,25 +136,28 @@ function fromProfile(profile?: Profile): ProfileFormValues {
       name: "",
       relationship_type: "本人",
       gender: "未知",
-      birth_minute: 0,
+      birth_time: undefined,
       calendar_type: "solar",
       is_leap_month: false,
+      location: undefined,
     };
   }
   return {
     name: profile.name,
     relationship_type: profile.relationship_type,
     gender: profile.gender ?? "未知",
-    birth_year: profile.birth?.year ?? null,
-    birth_month: profile.birth?.month ?? null,
-    birth_day: profile.birth?.day ?? null,
-    birth_hour: profile.birth?.hour ?? null,
-    birth_minute: profile.birth?.minute ?? 0,
+    birth_date: compactCascaderValue([
+      profile.birth?.year,
+      profile.birth?.month,
+      profile.birth?.day,
+    ]),
+    birth_time:
+      profile.birth?.hour === null || profile.birth?.hour === undefined
+        ? undefined
+        : [profile.birth.hour, profile.birth.minute ?? 0],
     calendar_type: profile.birth?.calendar_type ?? "solar",
     is_leap_month: profile.birth?.is_leap_month ?? false,
-    province: profile.birth?.province ?? null,
-    city: profile.birth?.city ?? null,
-    longitude: profile.birth?.longitude ?? null,
+    location: compactCascaderValue([profile.birth?.province, profile.birth?.city]),
   };
 }
 
@@ -177,8 +171,13 @@ export function ProfilePanel({
   const { message } = AntdApp.useApp();
   const [form] = Form.useForm<ProfileFormValues>();
   const [editing, setEditing] = useState<Profile | null>(null);
+  const [formValues, setFormValues] = useState<ProfileFormValues>(() => fromProfile());
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [locationOptions, setLocationOptions] = useState<CascaderOption[]>(
+    FALLBACK_LOCATION_OPTIONS,
+  );
+  const calendarType = Form.useWatch("calendar_type", form);
 
   const selectedSet = useMemo(() => new Set(selectedProfileIds), [selectedProfileIds]);
   const selectedCount = profiles.filter((profile) => selectedSet.has(profile.id)).length;
@@ -189,7 +188,6 @@ export function ProfilePanel({
     .join("、");
   const selectedSummary =
     selectedCount > 3 ? `${selectedNameText}等${selectedCount}人` : selectedNameText;
-  const allSelected = profiles.length > 0 && selectedCount === profiles.length;
   const modalTitle = useMemo(() => (editing ? "编辑人物信息" : "新增人物"), [editing]);
 
   const setProfileSelected = (profileId: number, selected: boolean) => {
@@ -206,21 +204,51 @@ export function ProfilePanel({
     onSelectedProfileIdsChange([]);
   };
 
-  const toggleAll = () => {
-    onSelectedProfileIdsChange(allSelected ? [] : profiles.map((profile) => profile.id));
-  };
-
   const openCreate = () => {
+    const values = fromProfile();
     setEditing(null);
-    form.setFieldsValue(fromProfile());
+    setFormValues(values);
+    form.setFieldsValue(values);
     setModalOpen(true);
   };
 
   const openEdit = (profile: Profile) => {
+    const values = fromProfile(profile);
     setEditing(profile);
-    form.setFieldsValue(fromProfile(profile));
+    setFormValues(values);
+    form.setFieldsValue(values);
     setModalOpen(true);
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/profiles/meta/cities")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("city options unavailable");
+        }
+        return response.json();
+      })
+      .then((payload) => {
+        if (!cancelled && Array.isArray(payload?.options) && payload.options.length > 0) {
+          setLocationOptions(payload.options);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLocationOptions(FALLBACK_LOCATION_OPTIONS);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (modalOpen) {
+      form.setFieldsValue(formValues);
+    }
+  }, [form, formValues, modalOpen]);
 
   const handleItemKeyDown = (event: KeyboardEvent<HTMLElement>, profileId: number) => {
     if (event.key === "Enter" || event.key === " ") {
@@ -266,7 +294,11 @@ export function ProfilePanel({
         <div>
           <Typography.Title level={5}>提问档案</Typography.Title>
           <Typography.Text type="secondary">
-            {profiles.length === 0 ? "暂无人物" : selectedCount > 0 ? selectedSummary : "本轮未附加档案"}
+            {profiles.length === 0
+              ? "暂无人物"
+              : selectedCount > 0
+                ? `已附加 ${selectedSummary}`
+                : "选择本轮要参考的人物"}
           </Typography.Text>
         </div>
         <Button type="primary" size="small" icon={<PlusOutlined />} onClick={openCreate}>
@@ -276,11 +308,8 @@ export function ProfilePanel({
 
       {profiles.length > 0 && (
         <div className="profile-picker-toolbar">
-          <Button size="small" onClick={toggleAll}>
-            {allSelected ? "取消全选" : "全选"}
-          </Button>
-          <Button size="small" type="text" disabled={selectedCount === 0} onClick={clearSelection}>
-            清空
+          <Button size="small" disabled={selectedCount === 0} onClick={clearSelection}>
+            清空已附加
           </Button>
         </div>
       )}
@@ -309,15 +338,22 @@ export function ProfilePanel({
                 onClick={() => setProfileSelected(profile.id, !selected)}
                 onKeyDown={(event) => handleItemKeyDown(event, profile.id)}
               >
-                <Checkbox
-                  checked={selected}
-                  onClick={(event) => event.stopPropagation()}
-                  onChange={(event) => setProfileSelected(profile.id, event.target.checked)}
-                />
+                <div className="profile-picker-check">
+                  {selected ? (
+                    <CheckCircleFilled aria-hidden="true" />
+                  ) : (
+                    <Checkbox
+                      checked={false}
+                      onClick={(event) => event.stopPropagation()}
+                      onChange={(event) => setProfileSelected(profile.id, event.target.checked)}
+                    />
+                  )}
+                </div>
                 <div className="profile-picker-main">
                   <div className="profile-picker-title">
                     <span className="profile-name">{profile.name}</span>
                     <Tag className="profile-relation-tag">{profile.relationship_type}</Tag>
+                    {selected ? <Tag className="profile-selected-tag">已附加</Tag> : null}
                   </div>
                   <p className="profile-birth">{compactBirth(profile)}</p>
                   <div className="profile-pillars">
@@ -362,7 +398,19 @@ export function ProfilePanel({
         onCancel={() => setModalOpen(false)}
         destroyOnClose
       >
-        <Form form={form} layout="vertical" className="profile-form" preserve={false}>
+        <Form
+          form={form}
+          layout="vertical"
+          className="profile-form"
+          preserve={false}
+          initialValues={formValues}
+        >
+          <div className="profile-form-hero">
+            <span className="profile-form-hero-kicker">{editing ? "正在编辑" : "新建档案"}</span>
+            <strong>{editing?.name ?? "填写人物信息"}</strong>
+            <span>{editing ? compactBirth(editing) : "保存后可在提问时一键附加"}</span>
+          </div>
+
           <div className="profile-form-section">
             <Typography.Text className="profile-form-section-title">基础信息</Typography.Text>
             <Form.Item name="name" label="姓名" rules={[{ required: true, message: "请输入姓名" }]}>
@@ -380,85 +428,52 @@ export function ProfilePanel({
 
           <div className="profile-form-section">
             <Typography.Text className="profile-form-section-title">出生信息</Typography.Text>
-            <div className="profile-form-grid">
+            <div className="profile-form-grid compact">
               <Form.Item name="calendar_type" label="历法">
                 <Segmented block options={CALENDAR_OPTIONS} />
               </Form.Item>
-              <Form.Item name="is_leap_month" label="闰月">
-                <Select
-                  options={[
-                    { label: "非闰月", value: false },
-                    { label: "闰月", value: true },
-                  ]}
-                  popupMatchSelectWidth={false}
-                />
-              </Form.Item>
+              {calendarType === "lunar" ? (
+                <Form.Item name="is_leap_month" label="闰月">
+                  <Select
+                    options={[
+                      { label: "非闰月", value: false },
+                      { label: "闰月", value: true },
+                    ]}
+                    popupMatchSelectWidth={false}
+                  />
+                </Form.Item>
+              ) : null}
             </div>
-            <div className="profile-form-grid three">
-              <Form.Item name="birth_year" label="年">
-                <Select
-                  allowClear
-                  showSearch
-                  options={YEAR_OPTIONS}
-                  optionFilterProp="label"
-                  placeholder="选择年份"
-                />
-              </Form.Item>
-              <Form.Item name="birth_month" label="月">
-                <Select allowClear options={MONTH_OPTIONS} placeholder="选择月份" />
-              </Form.Item>
-              <Form.Item name="birth_day" label="日">
-                <Select allowClear options={DAY_OPTIONS} placeholder="选择日期" />
-              </Form.Item>
-            </div>
-            <div className="profile-form-grid">
-              <Form.Item name="birth_hour" label="时辰">
-                <Select
-                  allowClear
-                  showSearch
-                  options={HOUR_OPTIONS}
-                  optionFilterProp="label"
-                  placeholder="选择小时"
-                />
-              </Form.Item>
-              <Form.Item name="birth_minute" label="分钟">
-                <Select
-                  allowClear
-                  showSearch
-                  options={MINUTE_OPTIONS}
-                  optionFilterProp="label"
-                  placeholder="选择分钟"
-                />
-              </Form.Item>
-            </div>
+            <Form.Item name="birth_date" label="出生日期">
+              <Cascader
+                allowClear
+                changeOnSelect
+                options={DATE_OPTIONS}
+                placeholder="选择年 / 月 / 日"
+                showSearch
+              />
+            </Form.Item>
+            <Form.Item name="birth_time" label="出生时间">
+              <Cascader
+                allowClear
+                changeOnSelect
+                options={TIME_OPTIONS}
+                placeholder="选择小时 / 分钟"
+                showSearch
+              />
+            </Form.Item>
           </div>
 
           <div className="profile-form-section">
             <Typography.Text className="profile-form-section-title">出生地</Typography.Text>
-            <div className="profile-form-grid">
-              <Form.Item name="province" label="省份">
-                <AutoComplete
-                  allowClear
-                  options={PROVINCE_OPTIONS}
-                  placeholder="选择或输入省份"
-                  filterOption={(inputValue, option) =>
-                    String(option?.value ?? "").includes(inputValue)
-                  }
-                />
-              </Form.Item>
-              <Form.Item name="city" label="城市">
-                <AutoComplete
-                  allowClear
-                  options={CITY_OPTIONS}
-                  placeholder="选择或输入城市"
-                  filterOption={(inputValue, option) =>
-                    String(option?.value ?? "").includes(inputValue)
-                  }
-                />
-              </Form.Item>
-            </div>
-            <Form.Item name="longitude" label="经度校正" className="profile-form-optional">
-              <Input maxLength={20} placeholder="可选，例如 116.40" />
+            <Form.Item name="location" label="省市">
+              <Cascader
+                allowClear
+                changeOnSelect
+                options={locationOptions}
+                placeholder="选择省份 / 城市"
+                showSearch
+              />
             </Form.Item>
           </div>
         </Form>

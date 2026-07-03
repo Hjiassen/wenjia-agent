@@ -4,10 +4,30 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
+from wenjia_agent.core.city_data import get_cities, get_provinces
 from wenjia_agent.runtime import profile_store
 from apps.web.backend.schemas import ProfilePayload
 
 router = APIRouter()
+
+
+@router.get("/profiles/meta/cities")
+async def get_profile_city_options() -> dict:
+    """Return two-level province/city options for profile forms."""
+
+    return {
+        "options": [
+            {
+                "label": province,
+                "value": province,
+                "children": [
+                    {"label": city, "value": city}
+                    for city in get_cities(province)
+                ],
+            }
+            for province in get_provinces()
+        ]
+    }
 
 
 @router.get("/profiles/{session_id}")

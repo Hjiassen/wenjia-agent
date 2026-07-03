@@ -5,7 +5,7 @@ import { ChatSider } from "./components/ChatSider";
 import { ChatWindow } from "./components/ChatWindow";
 import { RunFlowPanel, type RunFlowTurn } from "./components/RunFlowPanel";
 import { StreamFlowError, useChatStream } from "./hooks/useChatStream";
-import { usePwaInstall } from "./hooks/usePwaInstall";
+import { usePwaInstall, type PwaInstallTarget } from "./hooks/usePwaInstall";
 import type { ChatMessage, Conversation, FlowEvent, Profile, SuggestedQuestion } from "./types";
 import { buildProfilePrompt, toAttachedProfile } from "./lib/profileText";
 import {
@@ -31,6 +31,46 @@ interface PendingState {
 }
 
 const IDLE_PENDING: PendingState = { active: false, body: "", status: "", events: [], error: false };
+
+function installGuideFor(target: PwaInstallTarget): {
+  title: string;
+  steps: string[];
+  note: string;
+} {
+  switch (target) {
+    case "inAppBrowser":
+      return {
+        title: "先用系统浏览器打开",
+        steps: ["点击右上角菜单", "选择在浏览器打开", "打开后再点顶部安装"],
+        note: "微信、QQ、抖音等内置浏览器通常不能直接安装 PWA。",
+      };
+    case "ios":
+      return {
+        title: "添加到主屏幕",
+        steps: ["点击浏览器底部分享按钮", "选择添加到主屏幕", "确认名称后点击添加"],
+        note: "iPhone 和 iPad 不会弹出自动安装框，需要从分享菜单添加。",
+      };
+    case "android":
+      return {
+        title: "安装到手机桌面",
+        steps: ["点击浏览器右上角菜单", "选择安装应用或添加到主屏幕", "确认安装"],
+        note: "Chrome、Edge、三星浏览器一般会在菜单里提供安装入口。",
+      };
+    case "mobile":
+      return {
+        title: "添加到手机桌面",
+        steps: ["打开浏览器菜单或分享菜单", "选择添加到主屏幕", "确认添加"],
+        note: "不同手机浏览器入口名称会略有差异。",
+      };
+    case "native":
+    case "desktop":
+      return {
+        title: "安装问甲",
+        steps: ["打开浏览器地址栏或菜单", "选择安装应用", "确认安装"],
+        note: "如果没有安装入口，请确认当前页面使用 HTTPS 打开。",
+      };
+  }
+}
 
 function pendingStatusForEvent(event: FlowEvent): string {
   switch (event.type) {
@@ -126,7 +166,7 @@ export default function App() {
   const [siderCollapsed, setSiderCollapsed] = useState(false);
   const [flowOpen, setFlowOpen] = useState(false);
   const { send, cancel, isSending } = useChatStream();
-  const { canInstall, promptInstall } = usePwaInstall();
+  const { canInstall, installTarget, promptInstall } = usePwaInstall();
   const { modal } = AntdApp.useApp();
   const screens = Grid.useBreakpoint();
   // `md` is unset until the first measurement; treat only an explicit false as mobile.
@@ -416,6 +456,30 @@ export default function App() {
     });
   }, [modal]);
 
+  const handleInstall = useCallback(async () => {
+    const result = await promptInstall();
+    if (result !== "unavailable") {
+      return;
+    }
+
+    const guide = installGuideFor(installTarget);
+    modal.info({
+      title: guide.title,
+      okText: "知道了",
+      width: 360,
+      content: (
+        <div className="pwa-install-guide">
+          <ol>
+            {guide.steps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+          <p>{guide.note}</p>
+        </div>
+      ),
+    });
+  }, [installTarget, modal, promptInstall]);
+
   const sider = (
     <ChatSider
       sessionId={sessionId}
@@ -493,7 +557,7 @@ export default function App() {
           onCancel={cancel}
           onOpenSider={() => setDrawerOpen(true)}
           onOpenFlow={() => setFlowOpen(true)}
-          onInstall={promptInstall}
+          onInstall={handleInstall}
         />
 
         <RunFlowPanel

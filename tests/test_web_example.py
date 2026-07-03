@@ -88,6 +88,20 @@ def test_web_profiles_endpoint(monkeypatch):
     asyncio.run(run_test())
 
 
+def test_web_profile_city_options_endpoint():
+    async def run_test() -> None:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get("/api/profiles/meta/cities")
+
+        assert response.status_code == 200
+        payload = response.json()
+        beijing = next(item for item in payload["options"] if item["value"] == "北京市")
+        assert {"label": "北京市", "value": "北京市"} in beijing["children"]
+
+    asyncio.run(run_test())
+
+
 def test_web_profiles_create_and_update(monkeypatch):
     saved: dict[str, object] = {
         "id": 7,
