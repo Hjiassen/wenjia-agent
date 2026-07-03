@@ -14,6 +14,9 @@
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
+  --layout-viewport-height: 100dvh;
+  --visual-viewport-height: 100dvh;
+  --keyboard-inset: 0px;
 }
 
 * {
@@ -1062,6 +1065,8 @@ body {
   padding: 12px 20px 18px;
   border-top: 1px solid var(--line);
   background: #fff;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  will-change: transform;
 }
 
 .bubble-error {
@@ -1777,7 +1782,26 @@ body {
 
 /* ---------- Responsive / mobile ---------- */
 @media (max-width: 767px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  body {
+    position: fixed;
+    inset: 0;
+  }
+
+  .app-shell {
+    height: var(--layout-viewport-height, 100dvh);
+    min-height: var(--layout-viewport-height, 100dvh);
+  }
+
   .app-content {
+    height: var(--layout-viewport-height, 100dvh);
     min-width: 0;
   }
 
@@ -1788,6 +1812,21 @@ body {
 
   .ant-modal {
     max-width: 100%;
+  }
+
+  .profile-modal .ant-modal-body {
+    max-height: calc(var(--visual-viewport-height, 100dvh) - 164px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 2px;
+  }
+
+  :root[data-keyboard-open="true"] .ant-modal-root .ant-modal-wrap {
+    padding-bottom: calc(12px + var(--safe-bottom) + var(--keyboard-inset));
+  }
+
+  :root[data-keyboard-open="true"] .profile-modal .ant-modal-body {
+    max-height: calc(var(--visual-viewport-height, 100dvh) - 112px);
   }
 
   .chat-header {
@@ -1825,11 +1864,18 @@ body {
   }
 
   .chat-scroll {
-    padding: 16px 12px max(16px, calc(12px + var(--safe-bottom)));
+    padding: 16px 12px
+      max(16px, calc(12px + var(--safe-bottom) + var(--keyboard-inset)));
   }
 
   .chat-composer {
     padding: 8px 12px calc(12px + var(--safe-bottom));
+  }
+
+  :root[data-keyboard-open="true"] .chat-composer {
+    z-index: 30;
+    box-shadow: 0 -12px 30px rgba(31, 42, 46, 0.12);
+    transform: translate3d(0, calc(-1 * var(--keyboard-inset)), 0);
   }
 
   .chat-sender .ant-sender-input,

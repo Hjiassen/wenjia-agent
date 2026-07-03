@@ -450,7 +450,6 @@ export function ProfilePanel({
                 changeOnSelect
                 options={DATE_OPTIONS}
                 placeholder="选择年 / 月 / 日"
-                showSearch
               />
             </Form.Item>
             <Form.Item name="birth_time" label="出生时间">
@@ -459,7 +458,6 @@ export function ProfilePanel({
                 changeOnSelect
                 options={TIME_OPTIONS}
                 placeholder="选择小时 / 分钟"
-                showSearch
               />
             </Form.Item>
           </div>
@@ -472,7 +470,6 @@ export function ProfilePanel({
                 changeOnSelect
                 options={locationOptions}
                 placeholder="选择省份 / 城市"
-                showSearch
               />
             </Form.Item>
           </div>

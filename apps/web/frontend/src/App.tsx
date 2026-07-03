@@ -33,6 +33,7 @@ interface PendingState {
 
 const IDLE_PENDING: PendingState = { active: false, body: "", status: "", events: [], error: false };
 let mobileInstallSuggestionShownThisLoad = false;
+const KEYBOARD_OPEN_THRESHOLD = 80;
 
 function installGuideFor(target: PwaInstallTarget): {
   title: string;
@@ -206,6 +207,82 @@ export default function App() {
     const validIds = new Set(profiles.map((profile) => profile.id));
     setSelectedProfileIds((ids) => ids.filter((id) => validIds.has(id)));
   }, [profiles]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!isMobile) {
+      root.style.removeProperty("--layout-viewport-height");
+      root.style.removeProperty("--visual-viewport-height");
+      root.style.removeProperty("--keyboard-inset");
+      root.removeAttribute("data-keyboard-open");
+      return;
+    }
+
+    const viewport = window.visualViewport;
+    let frameId = 0;
+    let layoutHeight = Math.max(
+      window.innerHeight,
+      root.clientHeight,
+      viewport ? viewport.height + viewport.offsetTop : 0,
+    );
+
+    const syncViewport = () => {
+      frameId = 0;
+      const visualHeight = viewport?.height ?? window.innerHeight;
+      const visualTop = viewport?.offsetTop ?? 0;
+      const visibleBottom = visualTop + visualHeight;
+      const currentLayoutHeight = Math.max(window.innerHeight, root.clientHeight, visibleBottom);
+      const estimatedKeyboardInset = Math.max(0, layoutHeight - visibleBottom);
+
+      if (estimatedKeyboardInset <= KEYBOARD_OPEN_THRESHOLD) {
+        layoutHeight = currentLayoutHeight;
+      }
+
+      const keyboardInset = Math.max(0, layoutHeight - visibleBottom);
+      const keyboardOpen = keyboardInset > KEYBOARD_OPEN_THRESHOLD;
+
+      root.style.setProperty("--layout-viewport-height", `${layoutHeight}px`);
+      root.style.setProperty("--visual-viewport-height", `${visualHeight}px`);
+      root.style.setProperty("--keyboard-inset", `${keyboardOpen ? keyboardInset : 0}px`);
+      if (keyboardOpen) {
+        root.setAttribute("data-keyboard-open", "true");
+      } else {
+        root.removeAttribute("data-keyboard-open");
+      }
+    };
+
+    const scheduleSync = () => {
+      if (frameId) {
+        window.cancelAnimationFrame(frameId);
+      }
+      frameId = window.requestAnimationFrame(syncViewport);
+    };
+
+    const resetAndSync = () => {
+      layoutHeight = Math.max(window.innerHeight, root.clientHeight);
+      scheduleSync();
+    };
+
+    scheduleSync();
+    window.addEventListener("resize", scheduleSync);
+    window.addEventListener("orientationchange", resetAndSync);
+    viewport?.addEventListener("resize", scheduleSync);
+    viewport?.addEventListener("scroll", scheduleSync);
+
+    return () => {
+      if (frameId) {
+        window.cancelAnimationFrame(frameId);
+      }
+      window.removeEventListener("resize", scheduleSync);
+      window.removeEventListener("orientationchange", resetAndSync);
+      viewport?.removeEventListener("resize", scheduleSync);
+      viewport?.removeEventListener("scroll", scheduleSync);
+      root.style.removeProperty("--layout-viewport-height");
+      root.style.removeProperty("--visual-viewport-height");
+      root.style.removeProperty("--keyboard-inset");
+      root.removeAttribute("data-keyboard-open");
+    };
+  }, [isMobile]);
 
   useEffect(() => {
     let cancelled = false;
