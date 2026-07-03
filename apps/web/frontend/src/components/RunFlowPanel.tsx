@@ -126,8 +126,13 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
   const dragRef = useRef<DragState | null>(null);
   const activePointersRef = useRef<Map<number, PointerPoint>>(new Map());
   const pinchRef = useRef<PinchState | null>(null);
+  const onCloseRef = useRef(onClose);
   const [viewport, setViewport] = useState<CanvasViewport>(DEFAULT_VIEWPORT);
   const [isDragging, setIsDragging] = useState(false);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -137,11 +142,11 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
     pinchRef.current = null;
     activePointersRef.current.clear();
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") onCloseRef.current();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open]);
 
   const zoomTo = useCallback((nextScale: number, anchorX?: number, anchorY?: number) => {
     setViewport((prev) => {
