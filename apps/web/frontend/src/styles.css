@@ -325,6 +325,26 @@ body {
   line-height: 1.55;
 }
 
+.pwa-update-notice {
+  color: var(--ink);
+}
+
+.pwa-update-notice p {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.pwa-update-notice p:first-child {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.pwa-update-notice p:last-child {
+  margin-bottom: 0;
+}
+
 .chat-header-title {
   justify-self: center;
   min-width: 0;

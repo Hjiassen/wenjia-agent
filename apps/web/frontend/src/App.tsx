@@ -6,6 +6,7 @@ import { ChatWindow } from "./components/ChatWindow";
 import { RunFlowPanel, type RunFlowTurn } from "./components/RunFlowPanel";
 import { StreamFlowError, useChatStream } from "./hooks/useChatStream";
 import { usePwaInstall, type PwaInstallTarget } from "./hooks/usePwaInstall";
+import { PWA_UPDATE_AVAILABLE_EVENT } from "./lib/serviceWorker";
 import type { ChatMessage, Conversation, FlowEvent, Profile, SuggestedQuestion } from "./types";
 import { buildProfilePrompt, toAttachedProfile } from "./lib/profileText";
 import {
@@ -220,6 +221,34 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let shown = false;
+    const handleUpdateAvailable = () => {
+      if (shown) {
+        return;
+      }
+      shown = true;
+      modal.confirm({
+        title: "发现新版本",
+        okText: "立即刷新",
+        cancelText: "稍后",
+        width: 360,
+        content: (
+          <div className="pwa-update-notice">
+            <p>已发布新的界面和功能，本地安装的 App 需要刷新后才会切换到最新版。</p>
+            <p>刷新只会重新加载页面，不会清除本机保存的对话记录。</p>
+          </div>
+        ),
+        onOk: () => window.location.reload(),
+      });
+    };
+
+    window.addEventListener(PWA_UPDATE_AVAILABLE_EVENT, handleUpdateAvailable);
+    return () => {
+      window.removeEventListener(PWA_UPDATE_AVAILABLE_EVENT, handleUpdateAvailable);
+    };
+  }, [modal]);
 
   const currentMessages = useMemo<ChatMessage[]>(() => {
     return conversations.find((item) => item.id === sessionId)?.messages ?? [];

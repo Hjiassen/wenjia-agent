@@ -1,4 +1,4 @@
-const CACHE_NAME = "wenjia-pwa-v1";
+const CACHE_NAME = "wenjia-pwa-v2";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
