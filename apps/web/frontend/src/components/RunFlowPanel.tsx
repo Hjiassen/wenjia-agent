@@ -123,12 +123,15 @@ function buildRows(turns: RunFlowTurn[]): FlowRow[] {
 export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
   const rows = useMemo(() => buildRows(turns), [turns]);
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const viewportStateRef = useRef<CanvasViewport>(DEFAULT_VIEWPORT);
   const dragRef = useRef<DragState | null>(null);
   const activePointersRef = useRef<Map<number, PointerPoint>>(new Map());
   const pinchRef = useRef<PinchState | null>(null);
   const onCloseRef = useRef(onClose);
+  const frozenRowsRef = useRef<FlowRow[] | null>(null);
   const [viewport, setViewport] = useState<CanvasViewport>(DEFAULT_VIEWPORT);
   const [isDragging, setIsDragging] = useState(false);
+  const visibleRows = frozenRowsRef.current ?? rows;
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -136,10 +139,12 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
 
   useEffect(() => {
     if (!open) return;
+    viewportStateRef.current = DEFAULT_VIEWPORT;
     setViewport(DEFAULT_VIEWPORT);
     setIsDragging(false);
     dragRef.current = null;
     pinchRef.current = null;
+    frozenRowsRef.current = null;
     activePointersRef.current.clear();
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onCloseRef.current();
@@ -148,8 +153,24 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  const updateViewport = useCallback((next: CanvasViewport | ((prev: CanvasViewport) => CanvasViewport)) => {
+    const value = typeof next === "function" ? next(viewportStateRef.current) : next;
+    viewportStateRef.current = value;
+    setViewport(value);
+  }, []);
+
+  const beginInteraction = useCallback(() => {
+    frozenRowsRef.current ??= rows;
+    setIsDragging(true);
+  }, [rows]);
+
+  const endInteraction = useCallback(() => {
+    frozenRowsRef.current = null;
+    setIsDragging(false);
+  }, []);
+
   const zoomTo = useCallback((nextScale: number, anchorX?: number, anchorY?: number) => {
-    setViewport((prev) => {
+    updateViewport((prev) => {
       const rect = viewportRef.current?.getBoundingClientRect();
       const targetScale = clampScale(nextScale);
       if (!rect) {
@@ -165,7 +186,7 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
         scale: targetScale,
       };
     });
-  }, []);
+  }, [updateViewport]);
 
   const handleWheel = useCallback(
     (event: WheelEvent<HTMLDivElement>) => {
@@ -175,9 +196,9 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
       const localX = event.clientX - rect.left;
       const localY = event.clientY - rect.top;
       const direction = event.deltaY > 0 ? -1 : 1;
-      zoomTo(viewport.scale + direction * SCALE_STEP, localX, localY);
+      zoomTo(viewportStateRef.current.scale + direction * SCALE_STEP, localX, localY);
     },
-    [rows.length, viewport.scale, zoomTo],
+    [rows.length, zoomTo],
   );
 
   const startPinch = useCallback((target: HTMLDivElement) => {
@@ -195,11 +216,11 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
       startDistance: distance,
       startCenterX: center.x - rect.left,
       startCenterY: center.y - rect.top,
-      startViewport: viewport,
+      startViewport: viewportStateRef.current,
     };
     dragRef.current = null;
-    setIsDragging(true);
-  }, [viewport]);
+    beginInteraction();
+  }, [beginInteraction]);
 
   const handlePointerDown = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
@@ -209,8 +230,13 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
         return;
       }
       event.preventDefault();
-      event.currentTarget.setPointerCapture(event.pointerId);
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // Some mobile browsers can reject capture during rapid live updates.
+      }
       activePointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      beginInteraction();
 
       if (activePointersRef.current.size >= 2) {
         startPinch(event.currentTarget);
@@ -221,12 +247,11 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
         pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
-        originX: viewport.x,
-        originY: viewport.y,
+        originX: viewportStateRef.current.x,
+        originY: viewportStateRef.current.y,
       };
-      setIsDragging(true);
     },
-    [startPinch, viewport.x, viewport.y],
+    [beginInteraction, startPinch],
   );
 
   const handlePointerMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
@@ -251,7 +276,7 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
       const worldY = (pinch.startCenterY - pinch.startViewport.y) / pinch.startViewport.scale;
       const localCenterX = center.x - rect.left;
       const localCenterY = center.y - rect.top;
-      setViewport({
+      updateViewport({
         x: localCenterX - worldX * targetScale,
         y: localCenterY - worldY * targetScale,
         scale: targetScale,
@@ -262,12 +287,12 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     event.preventDefault();
-    setViewport((prev) => ({
+    updateViewport((prev) => ({
       ...prev,
       x: drag.originX + event.clientX - drag.startX,
       y: drag.originY + event.clientY - drag.startY,
     }));
-  }, []);
+  }, [updateViewport]);
 
   const stopDrag = useCallback((event: PointerEvent<HTMLDivElement>) => {
     activePointersRef.current.delete(event.pointerId);
@@ -279,15 +304,15 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
     if (pinch?.pointerIds.includes(event.pointerId)) {
       pinchRef.current = null;
       dragRef.current = null;
-      setIsDragging(false);
+      endInteraction();
       return;
     }
 
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null;
-    setIsDragging(false);
-  }, []);
+    endInteraction();
+  }, [endInteraction]);
 
   const canvasStyle = useMemo(
     () => ({
@@ -330,7 +355,7 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
           onPointerCancel={stopDrag}
           onWheel={handleWheel}
         >
-          {rows.length ? (
+          {visibleRows.length ? (
             <>
               <div className="runflow-canvas-controls" aria-label="画布缩放控制">
                 <Tooltip title="拖动画布 / 双指缩放">
@@ -362,14 +387,14 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
                     type="text"
                     size="small"
                     icon={<AimOutlined />}
-                    onClick={() => setViewport(DEFAULT_VIEWPORT)}
+                    onClick={() => updateViewport(DEFAULT_VIEWPORT)}
                     aria-label="复位画布"
                   />
                 </Tooltip>
               </div>
               <div className="runflow-canvas" style={canvasStyle}>
                 <div className="runflow-flow">
-                  {rows.map((row) => (
+                  {visibleRows.map((row) => (
                     <div className="runflow-row" key={row.id}>
                       {row.items.map((item, index) => (
                         <div className="runflow-node" key={item.id}>
