@@ -219,9 +219,8 @@ export function ChatWindow({
   const [profilePickerOpen, setProfilePickerOpen] = useState(false);
   const composerRef = useRef<HTMLDivElement | null>(null);
   const bubbleListRef = useRef<BubbleListRef | null>(null);
-  const programmaticScrollRef = useRef(false);
-  const programmaticScrollTimerRef = useRef<number | null>(null);
   const userScrollLockedRef = useRef(false);
+  const pendingAutoScrolledUserRef = useRef<string | null>(null);
   const previousSessionRef = useRef(sessionId);
   const previousLastUserKeyRef = useRef<string | null>(null);
   const selectedProfiles = useMemo(() => {
@@ -288,40 +287,18 @@ export function ChatWindow({
     return null;
   }, [messages]);
 
-  const markProgrammaticScroll = useCallback(() => {
-    programmaticScrollRef.current = true;
-    if (programmaticScrollTimerRef.current !== null) {
-      window.clearTimeout(programmaticScrollTimerRef.current);
-    }
-    programmaticScrollTimerRef.current = window.setTimeout(() => {
-      programmaticScrollRef.current = false;
-      programmaticScrollTimerRef.current = null;
-    }, 180);
-  }, []);
-
   const scrollLastUserToTop = useCallback(
     (key: string, behavior: ScrollBehavior = "auto") => {
       if (!bubbleListRef.current) {
         return;
       }
-      markProgrammaticScroll();
       bubbleListRef.current.scrollTo({ key, block: "start", behavior });
     },
-    [markProgrammaticScroll],
+    [],
   );
 
   const lockAutoScroll = useCallback(() => {
-    if (!programmaticScrollRef.current) {
-      userScrollLockedRef.current = true;
-    }
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (programmaticScrollTimerRef.current !== null) {
-        window.clearTimeout(programmaticScrollTimerRef.current);
-      }
-    };
+    userScrollLockedRef.current = true;
   }, []);
 
   useEffect(() => {
@@ -338,16 +315,29 @@ export function ChatWindow({
     previousSessionRef.current = sessionId;
     previousLastUserKeyRef.current = lastUserKey;
     userScrollLockedRef.current = false;
+    pendingAutoScrolledUserRef.current = null;
     const frame = window.requestAnimationFrame(() => {
-      scrollLastUserToTop(lastUserKey);
+      if (!userScrollLockedRef.current) {
+        scrollLastUserToTop(lastUserKey);
+      }
     });
     return () => window.cancelAnimationFrame(frame);
   }, [lastUserKey, scrollLastUserToTop, sessionId, showWelcome]);
 
   useEffect(() => {
-    if (!pending.active || !lastUserKey || userScrollLockedRef.current) {
+    if (!pending.active) {
+      pendingAutoScrolledUserRef.current = null;
       return;
     }
+    if (
+      !lastUserKey ||
+      userScrollLockedRef.current ||
+      pendingAutoScrolledUserRef.current === lastUserKey
+    ) {
+      return;
+    }
+
+    pendingAutoScrolledUserRef.current = lastUserKey;
 
     const frame = window.requestAnimationFrame(() => {
       if (!userScrollLockedRef.current) {
@@ -355,7 +345,7 @@ export function ChatWindow({
       }
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [lastUserKey, pending.active, pending.body, pending.status, scrollLastUserToTop]);
+  }, [lastUserKey, pending.active, scrollLastUserToTop]);
 
   useEffect(() => {
     if (!profilePickerOpen) {
@@ -454,7 +444,13 @@ export function ChatWindow({
         </div>
       </header>
 
-      <div className="chat-scroll">
+      <div
+        className="chat-scroll"
+        onWheelCapture={lockAutoScroll}
+        onTouchStartCapture={lockAutoScroll}
+        onTouchMoveCapture={lockAutoScroll}
+        onPointerDownCapture={lockAutoScroll}
+      >
         <div className="chat-column">
           {showWelcome ? (
             <div className="chat-welcome">
