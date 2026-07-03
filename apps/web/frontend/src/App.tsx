@@ -6,7 +6,11 @@ import { ChatWindow } from "./components/ChatWindow";
 import { RunFlowPanel, type RunFlowTurn } from "./components/RunFlowPanel";
 import { StreamFlowError, useChatStream } from "./hooks/useChatStream";
 import { usePwaInstall, type PwaInstallTarget } from "./hooks/usePwaInstall";
-import { PWA_UPDATE_AVAILABLE_EVENT } from "./lib/serviceWorker";
+import {
+  isPwaUpdateAvailable,
+  PWA_UPDATE_AVAILABLE_EVENT,
+  reloadForPwaUpdate,
+} from "./lib/serviceWorker";
 import type { ChatMessage, Conversation, FlowEvent, Profile, SuggestedQuestion } from "./types";
 import { buildProfilePrompt, toAttachedProfile } from "./lib/profileText";
 import {
@@ -317,11 +321,14 @@ export default function App() {
             <p>刷新只会重新加载页面，不会清除本机保存的对话记录。</p>
           </div>
         ),
-        onOk: () => window.location.reload(),
+        onOk: () => void reloadForPwaUpdate(),
       });
     };
 
     window.addEventListener(PWA_UPDATE_AVAILABLE_EVENT, handleUpdateAvailable);
+    if (isPwaUpdateAvailable()) {
+      handleUpdateAvailable();
+    }
     return () => {
       window.removeEventListener(PWA_UPDATE_AVAILABLE_EVENT, handleUpdateAvailable);
     };

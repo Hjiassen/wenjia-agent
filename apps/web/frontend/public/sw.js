@@ -1,4 +1,5 @@
-const CACHE_NAME = "wenjia-pwa-v2";
+const CACHE_NAME = "wenjia-pwa-v3";
+const UPDATE_READY_MESSAGE = "WENJIA_PWA_UPDATE_READY";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
@@ -25,8 +26,20 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))),
       )
-      .then(() => self.clients.claim()),
+      .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: "window", includeUncontrolled: true }))
+      .then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({ type: UPDATE_READY_MESSAGE, cacheName: CACHE_NAME });
+        });
+      }),
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 function shouldSkip(request) {
