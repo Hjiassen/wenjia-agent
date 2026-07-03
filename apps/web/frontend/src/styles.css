@@ -871,6 +871,27 @@ body {
   gap: 8px;
 }
 
+.assistant-live-content .markdown-body,
+.assistant-live-content .markdown-body h1,
+.assistant-live-content .markdown-body h2,
+.assistant-live-content .markdown-body h3,
+.assistant-live-content .markdown-body strong,
+.assistant-live-content .markdown-body th,
+.assistant-live-content .markdown-body td {
+  color: rgba(31, 42, 46, 0.58);
+}
+
+.assistant-live-content .markdown-table-wrap,
+.assistant-live-content .markdown-body th,
+.assistant-live-content .markdown-body td {
+  border-color: rgba(31, 42, 46, 0.12);
+}
+
+.assistant-live-content .markdown-body th,
+.assistant-live-content .markdown-body tr:nth-child(even) td {
+  background: rgba(31, 42, 46, 0.035);
+}
+
 .assistant-waiting {
   display: flex;
   flex-direction: column;
