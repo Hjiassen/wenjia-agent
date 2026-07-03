@@ -68,7 +68,7 @@ limits, log retention policy, and cost controls.
 
 ## Web App Preview
 
-![wenjia-agent Web App preview](docs/assets/web-app-preview.svg)
+![wenjia-agent Web App preview](docs/assets/web-app-preview.png)
 
 ## Features
 
