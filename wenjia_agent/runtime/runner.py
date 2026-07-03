@@ -19,6 +19,7 @@ from wenjia_agent.runtime.config import settings
 from wenjia_agent.runtime.models import build_run_config
 from wenjia_agent.runtime.output_format import format_final_output
 from wenjia_agent.runtime.run_context import WenjiaRunContext
+from wenjia_agent.runtime.session_memory import build_session_settings
 from wenjia_agent.runtime.trace import TraceRecorder, TraceRunHooks, start_trace
 
 _MAX_TURNS_MESSAGE = "推演步骤过多已中止，请补充更完整的信息或简化问题后重试。"
@@ -35,12 +36,14 @@ async def run_agent(session_id: str, message: str, user_id: str | None = None) -
         trace.finish("blocked", guardrail="input")
         return input_check.response or "这个请求无法按当前安全边界处理。"
 
-    memory_context = memory_store.format_memory_context(user_id)
+    selected_memories = memory_store.list_memories(user_id, query=message)
+    memory_context = memory_store.format_memory_items(selected_memories)
     if memory_context:
         trace.emit(
             "memory_context",
             injected=True,
-            item_count=len(memory_store.list_memories(user_id)),
+            item_count=len(selected_memories),
+            query_ranked=True,
         )
 
     try:
@@ -134,6 +137,7 @@ async def _run_agent_once(
         session_id=session_id,
         url=settings.session_db_url,
         create_tables=True,
+        session_settings=build_session_settings(),
     )
     context = WenjiaRunContext(
         session_id=session_id,

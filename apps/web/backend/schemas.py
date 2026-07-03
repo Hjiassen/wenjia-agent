@@ -37,6 +37,7 @@ class SuggestionResponse(BaseModel):
 class ProfilePayload(BaseModel):
     """Editable person profile fields from the web UI."""
 
+    client_id: str | None = Field(default=None, max_length=128)
     name: str = Field(..., min_length=1, max_length=64)
     relationship_type: str = Field(default="本人", min_length=1, max_length=20)
     gender: str | None = Field(default=None, max_length=10)

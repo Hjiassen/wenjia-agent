@@ -39,10 +39,25 @@ export function buildPipeline(events: FlowEvent[]): FlowStage[] {
     if (event.timestamp) stage.endedAt = event.timestamp;
   };
 
-  const finishCurrentAgent = (event: FlowEvent, expectedAgent?: string) => {
+  const closeOpenTools = (stage: FlowStage, status: StageStatus) => {
+    stage.tools.forEach((tool) => {
+      if (tool.status === "active" || tool.status === "pending") {
+        tool.status = status;
+      }
+    });
+  };
+
+  const finishCurrentAgent = (
+    event: FlowEvent,
+    expectedAgent?: string,
+    forcedStatus?: StageStatus,
+  ) => {
     if (!current || current.kind !== "agent") return;
     if (expectedAgent && current.label !== expectedAgent) return;
-    current.status = current.tools.some((t) => t.status === "failed") ? "failed" : "success";
+    const status =
+      forcedStatus ?? (current.tools.some((t) => t.status === "failed") ? "failed" : "success");
+    closeOpenTools(current, status);
+    current.status = status;
     touch(current, event);
     current = null;
   };
@@ -215,17 +230,13 @@ export function buildPipeline(events: FlowEvent[]): FlowStage[] {
         break;
       }
       case "interrupted": {
-        if (current) {
-          current.status = "failed";
-        }
+        finishCurrentAgent(event, undefined, "failed");
         finishActiveTransition(event, "failed");
         marker("interrupted", event.message || "推演已中止", "failed", event);
         break;
       }
       case "error": {
-        if (current) {
-          current.status = "failed";
-        }
+        finishCurrentAgent(event, undefined, "failed");
         finishActiveTransition(event, "failed");
         marker("error", event.message || "请求失败", "failed", event);
         break;

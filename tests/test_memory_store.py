@@ -75,3 +75,40 @@ def test_remember_profile_formats_context(temp_memory_db):
     assert "本人：测试" in formatted
     assert "四柱" in formatted
     assert "用户本轮更正" in formatted
+
+
+def test_query_ranked_memories_prefer_relevant_old_items(temp_memory_db):
+    memory_store.upsert_memory(
+        "client:1",
+        kind="note",
+        key="preference:recent",
+        title="近期偏好",
+        content="喜欢回答先给结论。",
+    )
+    memory_store.upsert_memory(
+        "client:1",
+        kind="profile",
+        key="profile:母亲:张女士",
+        title="母亲：张女士",
+        content="母亲：张女士；出生1968-03-12；四柱甲子 乙丑 丙寅 丁卯",
+    )
+
+    memories = memory_store.list_memories("client:1", query="我妈妈的命格怎么看")
+
+    assert memories[0]["key"] == "profile:母亲:张女士"
+
+
+def test_delete_memory_is_scoped_to_user(temp_memory_db):
+    saved = memory_store.upsert_memory(
+        "client:1",
+        kind="note",
+        key="preference:style",
+        title="偏好",
+        content="喜欢简洁回答。",
+    )
+
+    assert memory_store.delete_memory("client:2", saved["id"]) is False
+    assert memory_store.list_memories("client:1")
+
+    assert memory_store.delete_memory("client:1", saved["id"]) is True
+    assert memory_store.list_memories("client:1") == []

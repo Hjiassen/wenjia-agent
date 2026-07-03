@@ -98,6 +98,24 @@ function makeHistoryTerminalEvent(
   };
 }
 
+function makeHistoryIncompleteEvent(
+  conversationId: string,
+  messageIndex: number,
+  message: ChatMessage,
+): FlowEvent {
+  return {
+    id: `history:${conversationId}:${messageIndex}:incomplete`,
+    type: "interrupted",
+    session_id: conversationId,
+    timestamp: nowIso(),
+    success: false,
+    source: "client",
+    message: message.body
+      ? "页面离开时生成尚未完成，已保留离开前内容。"
+      : "页面离开时生成尚未完成，未收到输出内容。",
+  };
+}
+
 function normalizeSuggestions(value: unknown): ChatMessage["suggestions"] {
   if (!Array.isArray(value)) {
     return undefined;
@@ -143,7 +161,26 @@ function normalizeMessage(
     createdAt: typeof raw.createdAt === "string" ? raw.createdAt : nowIso(),
     suggestions: normalizeSuggestions(raw.suggestions),
     suggestionsLoading: false,
+    streaming: raw.streaming === true,
+    streamingStatus: typeof raw.streamingStatus === "string" ? raw.streamingStatus : undefined,
+    streamingError: raw.streamingError === true,
+    incomplete: raw.incomplete === true,
   };
+
+  if (normalized.role === "assistant" && normalized.streaming) {
+    normalized.streaming = false;
+    normalized.streamingStatus = undefined;
+    normalized.streamingError = false;
+    normalized.incomplete = true;
+    if (!normalized.body.trim()) {
+      normalized.body = "（页面离开时生成尚未完成，未收到输出内容。）";
+      normalized.type = "error";
+    }
+    normalized.flow = [
+      ...normalized.flow,
+      makeHistoryIncompleteEvent(conversationId, index, normalized),
+    ];
+  }
 
   if (normalized.role === "assistant" && normalized.type === "error") {
     const terminal = terminalFlowType(normalized.flow);
@@ -243,6 +280,12 @@ export function conversationPreview(conversation: Conversation): string {
   const last = conversation.messages.at(-1);
   if (!last) {
     return "还没有消息";
+  }
+  if (last.streaming) {
+    return last.body.trim() || last.streamingStatus || "正在生成回答";
+  }
+  if (last.incomplete && !last.body.trim()) {
+    return "生成未完成";
   }
   const compact = last.body.replace(/\s+/g, " ").trim();
   return compact.length > 36 ? `${compact.slice(0, 36)}...` : compact;

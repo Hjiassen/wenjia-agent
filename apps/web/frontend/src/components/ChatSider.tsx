@@ -1,8 +1,15 @@
+import { useState } from "react";
 import { Conversations } from "@ant-design/x";
 import { Badge, Button, Tooltip, Typography } from "antd";
-import { DeleteOutlined, MenuFoldOutlined, PlusOutlined } from "@ant-design/icons";
+import {
+  DatabaseOutlined,
+  DeleteOutlined,
+  MenuFoldOutlined,
+  PlusOutlined,
+} from "@ant-design/icons";
 import type { Conversation } from "../types";
 import { conversationTitle } from "../lib/storage";
+import { LongTermMemoryDialog } from "./LongTermMemoryDialog";
 
 type HealthStatus = "checking" | "ready" | "error";
 
@@ -17,9 +24,11 @@ interface ChatSiderProps {
   onCollapse?: () => void;
 }
 
-const HEALTH_META: Record<HealthStatus, { status: "processing" | "success" | "error"; text: string }> = {
+const HEALTH_META: Record<
+  Exclude<HealthStatus, "ready">,
+  { status: "processing" | "success" | "error"; text: string }
+> = {
   checking: { status: "processing", text: "连接中" },
-  ready: { status: "success", text: "就绪" },
   error: { status: "error", text: "后端离线" },
 };
 
@@ -33,6 +42,7 @@ export function ChatSider({
   onClearHistory,
   onCollapse,
 }: ChatSiderProps) {
+  const [memoryOpen, setMemoryOpen] = useState(false);
   const items = conversations.map((conversation) => {
     const title = conversationTitle(conversation);
     return {
@@ -61,7 +71,20 @@ export function ChatSider({
     };
   });
 
-  const meta = HEALTH_META[health];
+  const healthNode =
+    health === "ready" ? (
+      <Button
+        size="small"
+        type="text"
+        icon={<DatabaseOutlined />}
+        className="sider-memory-button"
+        onClick={() => setMemoryOpen(true)}
+      >
+        长期记忆
+      </Button>
+    ) : (
+      <Badge status={HEALTH_META[health].status} text={HEALTH_META[health].text} />
+    );
 
   return (
     <div className="chat-sider">
@@ -100,13 +123,14 @@ export function ChatSider({
       </div>
 
       <div className="sider-footer">
-        <Badge status={meta.status} text={meta.text} />
+        {healthNode}
         <Tooltip title="清空本浏览器历史对话">
           <Button size="small" type="text" icon={<DeleteOutlined />} onClick={onClearHistory}>
             清空
           </Button>
         </Tooltip>
       </div>
+      <LongTermMemoryDialog open={memoryOpen} onClose={() => setMemoryOpen(false)} />
     </div>
   );
 }

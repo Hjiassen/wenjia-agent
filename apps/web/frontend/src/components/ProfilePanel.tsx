@@ -15,9 +15,14 @@ import {
   Tooltip,
   Typography,
 } from "antd";
-import { CheckCircleFilled, EditOutlined, PlusOutlined } from "@ant-design/icons";
+import {
+  CheckCircleFilled,
+  EditOutlined,
+  PlusOutlined,
+} from "@ant-design/icons";
 import type { Profile, ProfilePayload } from "../types";
 import { compactBirth } from "../lib/profileText";
+import { getClientId } from "../lib/storage";
 
 const PILLAR_LABELS: Array<[keyof Profile["pillars"], string]> = [
   ["year", "年"],
@@ -109,6 +114,7 @@ function toPayload(values: ProfileFormValues): ProfilePayload {
   const birthMinute = typeof birthTime[1] === "number" ? birthTime[1] : null;
 
   return {
+    client_id: getClientId(),
     name: values.name.trim(),
     relationship_type: values.relationship_type || "本人",
     gender: values.gender || null,
@@ -125,7 +131,9 @@ function toPayload(values: ProfileFormValues): ProfilePayload {
   };
 }
 
-function compactCascaderValue(parts: Array<string | number | null | undefined>): CascaderValue | undefined {
+function compactCascaderValue(
+  parts: Array<string | number | null | undefined>,
+): CascaderValue | undefined {
   const value = parts.filter((part) => part !== null && part !== undefined) as CascaderValue;
   return value.length > 0 ? value : undefined;
 }
@@ -475,6 +483,7 @@ export function ProfilePanel({
           </div>
         </Form>
       </Modal>
+
     </section>
   );
 }

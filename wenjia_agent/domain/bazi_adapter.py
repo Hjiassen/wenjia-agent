@@ -56,6 +56,14 @@ class BaziAdapter:
         return BaziResult(
             name=birth_info.name,
             gender=birth_info.gender,
+            birth_year=birth_info.birth_year,
+            birth_month=birth_info.birth_month,
+            birth_day=birth_info.birth_day,
+            birth_hour=birth_info.birth_hour,
+            birth_minute=birth_info.birth_minute,
+            is_leap_month=birth_info.is_leap_month,
+            province=birth_info.province,
+            city=birth_info.city,
             input_calendar_type=birth_info.calendar_type,
             actual_birth_year=actual_date.year,
             actual_birth_month=actual_date.month,
@@ -75,7 +83,11 @@ class BaziAdapter:
             )
 
         try:
-            lunar_month = -birth_info.birth_month if birth_info.is_leap_month else birth_info.birth_month
+            lunar_month = (
+                -birth_info.birth_month
+                if birth_info.is_leap_month
+                else birth_info.birth_month
+            )
             lunar = Lunar.fromYmd(birth_info.birth_year, lunar_month, birth_info.birth_day)
             solar = lunar.getSolar()
         except Exception as exc:  # noqa: BLE001 - normalize library errors for tool callers.

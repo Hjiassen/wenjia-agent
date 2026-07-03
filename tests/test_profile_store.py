@@ -52,10 +52,24 @@ def test_save_and_list_round_trip(temp_db):
     assert saved["relationship_type"] == "本人"
     assert saved["name"] == "测试"
     assert saved["pillars"]["day"]
+    assert saved["birth"] == {
+        "year": 1995,
+        "month": 5,
+        "day": 12,
+        "hour": 9,
+        "minute": 30,
+        "calendar_type": "solar",
+        "is_leap_month": False,
+        "province": "北京市",
+        "city": "北京市",
+        "longitude": "116.4074",
+    }
 
     profiles = profile_store.list_profiles("web:s1")
     assert len(profiles) == 1
     assert profiles[0]["name"] == "测试"
+    assert profiles[0]["birth"]["year"] == 1995
+    assert profiles[0]["birth"]["province"] == "北京市"
     assert set(profiles[0]["five_elements"]) == {"木", "火", "土", "金", "水"}
 
 
@@ -137,6 +151,55 @@ def test_manual_profile_create_and_edit(temp_db):
     assert len(profile_store.list_profiles("web:s1")) == 1
 
 
+def test_manual_profile_mirrors_to_long_term_memory(temp_db):
+    created = profile_store.upsert_manual_profile(
+        "web:s1",
+        {
+            "name": "手动人物",
+            "relationship_type": "朋友",
+            "gender": "未知",
+            "birth_year": 1990,
+            "birth_month": 1,
+            "birth_day": 2,
+            "birth_hour": 3,
+            "birth_minute": 4,
+            "calendar_type": "solar",
+            "is_leap_month": False,
+            "province": "北京市",
+            "city": "北京市",
+        },
+        user_id="client:1",
+    )
+
+    memories = memory_store.list_memories("client:1", query="朋友手动人物")
+    assert len(memories) == 1
+    assert "朋友：手动人物" in memories[0]["content"]
+
+    profile_store.upsert_manual_profile(
+        "web:s1",
+        {
+            "name": "手动人物2",
+            "relationship_type": "本人",
+            "gender": "男",
+            "birth_year": 1990,
+            "birth_month": 1,
+            "birth_day": 2,
+            "birth_hour": 3,
+            "birth_minute": 4,
+            "calendar_type": "solar",
+            "is_leap_month": False,
+            "province": "北京市",
+            "city": "北京市",
+        },
+        profile_id=created["id"],
+        user_id="client:1",
+    )
+
+    memories = memory_store.list_memories("client:1")
+    assert len(memories) == 1
+    assert memories[0]["key"] == "profile:本人:手动人物2"
+
+
 def _birth_args():
     return dict(
         name="测试",
@@ -185,6 +248,13 @@ def test_autosave_subject_persists_on_successful_chart(temp_db):
     profiles = profile_store.list_profiles("web:auto")
     assert len(profiles) == 1
     assert profiles[0]["relationship_type"] == "本人"
+    assert profiles[0]["birth"]["year"] == 1995
+    assert profiles[0]["birth"]["month"] == 5
+    assert profiles[0]["birth"]["day"] == 12
+    assert profiles[0]["birth"]["hour"] == 9
+    assert profiles[0]["birth"]["minute"] == 30
+    assert profiles[0]["birth"]["province"] == "北京市"
+    assert profiles[0]["birth"]["city"] == "北京市"
 
 
 def test_autosave_subject_skips_cached_results(temp_db):

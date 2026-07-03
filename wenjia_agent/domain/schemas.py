@@ -44,6 +44,14 @@ class BaziResult(BaseModel):
 
     name: str
     gender: str
+    birth_year: int | None = None
+    birth_month: int | None = None
+    birth_day: int | None = None
+    birth_hour: int | None = None
+    birth_minute: int | None = None
+    is_leap_month: bool | None = None
+    province: str | None = None
+    city: str | None = None
     input_calendar_type: str
     actual_birth_year: int
     actual_birth_month: int

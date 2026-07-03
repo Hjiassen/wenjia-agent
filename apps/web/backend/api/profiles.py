@@ -42,7 +42,11 @@ async def create_profile(session_id: str, payload: ProfilePayload) -> dict:
     """Create a person profile for a conversation."""
 
     try:
-        profile = profile_store.upsert_manual_profile(session_id, payload.model_dump())
+        profile = profile_store.upsert_manual_profile(
+            session_id,
+            payload.model_dump(exclude={"client_id"}),
+            user_id=payload.client_id,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {"session_id": session_id, "profile": profile}
@@ -55,8 +59,9 @@ async def update_profile(session_id: str, profile_id: int, payload: ProfilePaylo
     try:
         profile = profile_store.upsert_manual_profile(
             session_id,
-            payload.model_dump(),
+            payload.model_dump(exclude={"client_id"}),
             profile_id=profile_id,
+            user_id=payload.client_id,
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

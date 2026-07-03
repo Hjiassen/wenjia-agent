@@ -80,6 +80,16 @@ function takeDisplayChunk(text: string): [string, string] {
   return [text, ""];
 }
 
+function collapseRepeatedFinalOutput(finalOutput: string, streamedOutput: string): string {
+  const streamed = streamedOutput.trim();
+  if (!streamed || !finalOutput.startsWith(streamedOutput)) {
+    return finalOutput;
+  }
+
+  const repeatedTail = finalOutput.slice(streamedOutput.length).trim();
+  return repeatedTail === streamed ? streamedOutput : finalOutput;
+}
+
 export function useChatStream() {
   const [isSending, setIsSending] = useState(false);
   const sendingRef = useRef(false);
@@ -243,7 +253,10 @@ export function useChatStream() {
               if (event.success === false) {
                 throw new StreamFlowError(event.message || "Agent 请求失败。", events, resolvedSession);
               }
-              finalOutput = event.content || streamedOutput;
+              finalOutput = collapseRepeatedFinalOutput(
+                event.content || streamedOutput,
+                streamedOutput,
+              );
               if (finalOutput && finalOutput !== streamedOutput) {
                 resetAnswer();
                 enqueueAnswer(finalOutput);

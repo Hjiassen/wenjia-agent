@@ -107,6 +107,10 @@ export interface ChatMessage {
   profileContext?: AttachedProfile[];
   suggestions?: SuggestedQuestion[];
   suggestionsLoading?: boolean;
+  streaming?: boolean;
+  streamingStatus?: string;
+  streamingError?: boolean;
+  incomplete?: boolean;
 }
 
 export interface Conversation {
@@ -145,6 +149,7 @@ export interface AttachedProfile {
 }
 
 export interface ProfilePayload {
+  client_id?: string | null;
   name: string;
   relationship_type: string;
   gender?: string | null;
@@ -158,4 +163,17 @@ export interface ProfilePayload {
   province?: string | null;
   city?: string | null;
   longitude?: string | null;
+}
+
+export interface LongTermMemory {
+  id: number;
+  user_id?: string;
+  kind: string;
+  key: string;
+  title: string;
+  content: string;
+  payload?: unknown;
+  source_session_id?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 }

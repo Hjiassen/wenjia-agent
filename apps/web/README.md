@@ -10,7 +10,8 @@
   **[Ant Design X](https://x.ant.design/)**（Bubble / Sender / Conversations /
   ThoughtChain）构建，把 Agent 运行过程渲染成带思考链的实时对话。
 
-Agent 记忆以 `session_id` 为键；可见的对话历史保存在浏览器的 `localStorage`。
+Agent 同会话记忆以 `session_id` 为键；跨会话长期记忆以浏览器 `client_id`
+为键；可见的对话历史保存在浏览器的 `localStorage`。
 
 ## 运行（两个进程）
 
@@ -78,10 +79,11 @@ FRONTEND_MODE=dev bash scripts/deploy_ubuntu.sh restart
 | `OPENAI_AGENT_MODEL` | `gpt-4.1-mini` | 主控路由、资料收集、工具查询等轻量 Agent。 |
 | `OPENAI_ANALYSIS_MODEL` | `gpt-4.1-mini` | 命格、合盘、起名等正式分析 Agent。 |
 | `OPENAI_FALLBACK_MODEL` | 空 | 主模型超时或异常时的备用模型；留空则禁用。 |
+| `WENJIA_SESSION_HISTORY_LIMIT` | `40` | 每轮从同一 `session_id` 取回的最近会话消息条数；设为 `0` 或负数表示不限制。 |
 | `WENJIA_INPUT_GUARDRAILS_ENABLED` | `true` | 是否启用输入护栏。 |
 | `WENJIA_INPUT_MAX_CHARS` | `8000` | 单次用户输入最大长度。 |
 | `WENJIA_LONG_TERM_MEMORY_ENABLED` | `true` | 是否启用基于浏览器 `client_id` 的跨会话长期记忆。 |
-| `WENJIA_LONG_TERM_MEMORY_MAX_ITEMS` | `8` | 每轮注入模型的长期记忆条数上限。 |
+| `WENJIA_LONG_TERM_MEMORY_MAX_ITEMS` | `8` | 每轮按当前问题相关性注入模型的长期记忆条数上限。 |
 | `WENJIA_MODEL_TIMEOUT_SECONDS` | `90` | 单次模型调用超时时间。 |
 | `WENJIA_TRACE_ENABLED` | `true` | 是否写入本地 JSONL 运行追踪。 |
 | `WENJIA_TRACE_DIR` | `logs/traces` | 本地 trace 输出目录。 |
@@ -95,4 +97,6 @@ FRONTEND_MODE=dev bash scripts/deploy_ubuntu.sh restart
 | `POST` | `/api/chat` | 运行一轮 Agent（非流式）。 |
 | `POST` | `/api/chat/stream` | 流式返回 Agent 流程事件（SSE）+ 最终输出。 |
 | `GET` | `/api/profiles/{session_id}` | 某会话归档的人物档案。 |
+| `GET` | `/api/memories?client_id=...` | 当前浏览器用户的长期记忆。 |
+| `DELETE` | `/api/memories/{memory_id}?client_id=...` | 删除一条长期记忆。 |
 | `GET` | `/docs` | FastAPI 自动生成的接口文档。 |

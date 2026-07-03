@@ -12,7 +12,8 @@ front/back stack**:
   ThoughtChain), rendering the Agent run as a live chat with an inline
   thought-chain of the flow events.
 
-Agent memory is keyed by `session_id`; the visible chat history lives in the
+Same-session Agent memory is keyed by `session_id`; cross-session long-term
+memory is keyed by the browser `client_id`; visible chat history lives in the
 browser's `localStorage`.
 
 ## Run (two processes)
@@ -57,10 +58,11 @@ reverse proxy (same origin) or allow the SPA origin via `WENJIA_CORS_ORIGINS`.
 | `OPENAI_AGENT_MODEL` | `gpt-4.1-mini` | Lightweight routing, profile collection, and tool-query Agents. |
 | `OPENAI_ANALYSIS_MODEL` | `gpt-4.1-mini` | Specialist analysis Agents for fortune, relationship, and naming. |
 | `OPENAI_FALLBACK_MODEL` | empty | Backup model used when the primary model times out or errors; empty disables fallback. |
+| `WENJIA_SESSION_HISTORY_LIMIT` | `40` | Maximum recent SDK session items retrieved per turn for one `session_id`; set to `0` or lower to disable the limit. |
 | `WENJIA_INPUT_GUARDRAILS_ENABLED` | `true` | Whether deterministic input guardrails are enabled. |
 | `WENJIA_INPUT_MAX_CHARS` | `8000` | Maximum user input length per turn. |
 | `WENJIA_LONG_TERM_MEMORY_ENABLED` | `true` | Whether cross-session memory keyed by browser `client_id` is enabled. |
-| `WENJIA_LONG_TERM_MEMORY_MAX_ITEMS` | `8` | Maximum long-term memory items injected per turn. |
+| `WENJIA_LONG_TERM_MEMORY_MAX_ITEMS` | `8` | Maximum query-ranked long-term memory items injected per turn. |
 | `WENJIA_MODEL_TIMEOUT_SECONDS` | `90` | Timeout for one model run. |
 | `WENJIA_TRACE_ENABLED` | `true` | Whether to write local JSONL run traces. |
 | `WENJIA_TRACE_DIR` | `logs/traces` | Local trace output directory. |
@@ -74,4 +76,6 @@ reverse proxy (same origin) or allow the SPA origin via `WENJIA_CORS_ORIGINS`.
 | `POST` | `/api/chat` | Run one Agent turn (non-streaming). |
 | `POST` | `/api/chat/stream` | Stream Agent flow events (SSE) + final output. |
 | `GET` | `/api/profiles/{session_id}` | Person profiles archived for a session. |
+| `GET` | `/api/memories?client_id=...` | Long-term memories for the current browser client. |
+| `DELETE` | `/api/memories/{memory_id}?client_id=...` | Delete one long-term memory item. |
 | `GET` | `/docs` | FastAPI-generated API docs. |

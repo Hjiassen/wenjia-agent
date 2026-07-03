@@ -364,9 +364,21 @@ export default function App() {
   const runFlowTurns = useMemo<RunFlowTurn[]>(() => {
     const turns: RunFlowTurn[] = [];
     let lastPrompt = "";
+    let hasStreamingTurn = false;
     currentMessages.forEach((message, index) => {
       if (message.role === "user") {
         lastPrompt = message.body;
+        return;
+      }
+      if (message.streaming) {
+        hasStreamingTurn = true;
+        turns.push({
+          id: `turn-${index}`,
+          prompt: lastPrompt,
+          events: message.flow,
+          error: message.streamingError,
+          live: true,
+        });
         return;
       }
       if (message.flow.length > 0) {
@@ -378,7 +390,8 @@ export default function App() {
         });
       }
     });
-    if (pending.active) {
+    const lastMessage = currentMessages.at(-1);
+    if (pending.active && !hasStreamingTurn && lastMessage?.role !== "assistant") {
       turns.push({ id: "turn-live", prompt: lastPrompt, events: pending.events, live: true });
     }
     return turns;
@@ -434,6 +447,8 @@ export default function App() {
       if (
         message.type === "error" ||
         !message.body.trim() ||
+        message.streaming ||
+        message.incomplete ||
         Array.isArray(message.suggestions) ||
         message.suggestionsLoading
       ) {
@@ -473,72 +488,108 @@ export default function App() {
       }
       const activeSession = sessionId;
       const agentMessage = buildProfilePrompt(message, attachedProfiles);
+      const userCreatedAt = nowIso();
+      const liveAssistantCreatedAt = new Date(Date.now() + 1).toISOString();
+      let liveEvents: FlowEvent[] = [];
+      let liveError = false;
+
       appendMessage(activeSession, {
         role: "user",
         body: message,
         flow: [],
-        createdAt: nowIso(),
+        createdAt: userCreatedAt,
         profileContext: attachedProfiles.map(toAttachedProfile),
+      });
+      appendMessage(activeSession, {
+        role: "assistant",
+        body: "",
+        flow: [],
+        createdAt: liveAssistantCreatedAt,
+        streaming: true,
+        streamingStatus: "已发送，正在连接",
+        streamingError: false,
       });
       setDraft("");
       setPending({ active: true, body: "", status: "已发送，正在连接", events: [], error: false });
 
       try {
         const result = await send(agentMessage, activeSession, {
-          onEvent: (event) =>
+          onEvent: (event) => {
+            liveEvents = [...liveEvents, event];
+            const status = pendingStatusForEvent(event);
+            liveError =
+              liveError ||
+              event.type === "error" ||
+              event.type === "interrupted" ||
+              (event.success === false && !event.blocked);
             setPending((prev) => ({
               ...prev,
-              events: [...prev.events, event],
-              status: pendingStatusForEvent(event),
-              error:
-                prev.error ||
-                event.type === "error" ||
-                event.type === "interrupted" ||
-                (event.success === false && !event.blocked),
-            })),
-          onAnswerDelta: (_delta, text) =>
+              events: liveEvents,
+              status,
+              error: liveError,
+            }));
+            updateMessage(activeSession, liveAssistantCreatedAt, {
+              flow: liveEvents,
+              streamingStatus: status,
+              streamingError: liveError,
+            });
+          },
+          onAnswerDelta: (_delta, text) => {
             setPending((prev) => ({
               ...prev,
               body: text,
               status: "正在生成回答",
-            })),
-          onAnswerReplace: (text) =>
+            }));
+            updateMessage(activeSession, liveAssistantCreatedAt, {
+              body: text,
+              streamingStatus: "正在生成回答",
+              streamingError: liveError,
+            });
+          },
+          onAnswerReplace: (text) => {
             setPending((prev) => ({
               ...prev,
               body: text,
               status: "正在生成回答",
-            })),
+            }));
+            updateMessage(activeSession, liveAssistantCreatedAt, {
+              body: text,
+              streamingStatus: "正在生成回答",
+              streamingError: liveError,
+            });
+          },
           onSessionId: (id) => setState((prev) => ({ ...prev, sessionId: id })),
         });
         if (result.aborted) {
-          if (result.events.length) {
-            appendMessage(result.sessionId, {
-              role: "assistant",
-              body: "（推演已被手动中止）",
-              type: "error",
-              flow: result.events,
-              createdAt: nowIso(),
-            });
-          }
+          updateMessage(activeSession, liveAssistantCreatedAt, {
+            body: "（推演已被手动中止）",
+            type: "error",
+            flow: result.events,
+            streaming: false,
+            streamingStatus: undefined,
+            streamingError: false,
+            incomplete: false,
+          });
           return;
         }
-        const assistantCreatedAt = nowIso();
-        appendMessage(result.sessionId, {
-          role: "assistant",
+        updateMessage(activeSession, liveAssistantCreatedAt, {
           body: result.finalOutput,
           flow: result.events,
-          createdAt: assistantCreatedAt,
+          streaming: false,
+          streamingStatus: undefined,
+          streamingError: false,
+          incomplete: false,
           suggestionsLoading: true,
         });
         void fetchSuggestedQuestions(result.sessionId, message, result.finalOutput)
           .then((suggestions) =>
-            updateMessage(result.sessionId, assistantCreatedAt, {
+            updateMessage(activeSession, liveAssistantCreatedAt, {
               suggestions,
               suggestionsLoading: false,
             }),
           )
           .catch(() =>
-            updateMessage(result.sessionId, assistantCreatedAt, {
+            updateMessage(activeSession, liveAssistantCreatedAt, {
               suggestions: [],
               suggestionsLoading: false,
             }),
@@ -548,12 +599,14 @@ export default function App() {
         const text = error instanceof Error ? error.message : "请求失败，请稍后再试。";
         const streamFlow = error instanceof StreamFlowError ? error.events : [];
         const streamSession = error instanceof StreamFlowError ? error.sessionId : activeSession;
-        appendMessage(streamSession, {
-          role: "assistant",
+        updateMessage(activeSession, liveAssistantCreatedAt, {
           body: text,
           type: "error",
           flow: streamFlow,
-          createdAt: nowIso(),
+          streaming: false,
+          streamingStatus: undefined,
+          streamingError: false,
+          incomplete: false,
         });
         if (streamSession !== activeSession) {
           setState((prev) => ({ ...prev, sessionId: streamSession }));

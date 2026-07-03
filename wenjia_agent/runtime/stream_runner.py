@@ -33,6 +33,7 @@ from wenjia_agent.runtime.flow_events import (
     utc_now_iso,
 )
 from wenjia_agent.runtime.models import build_run_config
+from wenjia_agent.runtime.session_memory import build_session_settings
 from wenjia_agent.runtime.trace import TraceRecorder, start_trace
 
 FlowEvent = dict[str, Any]
@@ -287,12 +288,14 @@ async def stream_agent_events(
                 yield event
         return
 
-    memory_context = memory_store.format_memory_context(user_id)
+    selected_memories = memory_store.list_memories(user_id, query=message)
+    memory_context = memory_store.format_memory_items(selected_memories)
     if memory_context:
         trace.emit(
             "memory_context",
             injected=True,
-            item_count=len(memory_store.list_memories(user_id)),
+            item_count=len(selected_memories),
+            query_ranked=True,
         )
 
     async def consume_sdk_stream() -> None:
@@ -304,6 +307,7 @@ async def stream_agent_events(
                 session_id=session_id,
                 url=settings.session_db_url,
                 create_tables=True,
+                session_settings=build_session_settings(),
             )
             hooks = FlowRunHooks(emitter, trace)
             context = WenjiaRunContext(
@@ -340,7 +344,11 @@ async def stream_agent_events(
             if correction is not None:
                 await emitter.emit({"type": "answer_reset"})
 
-            with trace.span("act", correction=correction is not None, model_override=model_override):
+            with trace.span(
+                "act",
+                correction=correction is not None,
+                model_override=model_override,
+            ):
                 result = Runner.run_streamed(
                     main_agent,
                     correction or message,

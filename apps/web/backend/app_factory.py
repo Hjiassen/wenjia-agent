@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api import chat, health, profiles
+from .api import chat, health, memories, profiles
 from .lifespan import lifespan
 from .settings import settings
 
@@ -31,5 +31,6 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(chat.router, prefix="/api")
     app.include_router(profiles.router, prefix="/api")
+    app.include_router(memories.router, prefix="/api")
 
     return app

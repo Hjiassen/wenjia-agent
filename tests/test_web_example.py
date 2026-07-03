@@ -113,9 +113,10 @@ def test_web_profiles_create_and_update(monkeypatch):
         "five_elements": None,
     }
 
-    def fake_upsert(session_id, data, profile_id=None):
+    def fake_upsert(session_id, data, profile_id=None, user_id=None):
         assert session_id == "web:manual"
         assert data["name"] in {"测试", "测试2"}
+        assert user_id is None
         if profile_id is not None:
             assert profile_id == 7
         return {**saved, "name": data["name"]}
@@ -140,6 +141,42 @@ def test_web_profiles_create_and_update(monkeypatch):
         assert create_response.json()["profile"]["name"] == "测试"
         assert update_response.status_code == 200
         assert update_response.json()["profile"]["name"] == "测试2"
+
+    asyncio.run(run_test())
+
+
+def test_web_memories_list_and_delete(monkeypatch):
+    async def run_test() -> None:
+        monkeypatch.setattr(
+            "apps.web.backend.api.memories.memory_store.list_memories",
+            lambda client_id, query=None: [
+                {
+                    "id": 9,
+                    "kind": "profile",
+                    "title": "本人：测试",
+                    "content": "本人：测试；出生1995-05-12",
+                }
+            ],
+        )
+        monkeypatch.setattr(
+            "apps.web.backend.api.memories.memory_store.delete_memory",
+            lambda client_id, memory_id: client_id == "client:abc" and memory_id == 9,
+        )
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            list_response = await client.get(
+                "/api/memories",
+                params={"client_id": "client:abc", "query": "测试"},
+            )
+            delete_response = await client.delete(
+                "/api/memories/9",
+                params={"client_id": "client:abc"},
+            )
+
+        assert list_response.status_code == 200
+        assert list_response.json()["memories"][0]["id"] == 9
+        assert delete_response.status_code == 200
+        assert delete_response.json()["deleted"] is True
 
     asyncio.run(run_test())
 

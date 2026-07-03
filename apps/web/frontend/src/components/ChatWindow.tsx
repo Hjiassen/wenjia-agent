@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bubble, Prompts, Sender, Welcome } from "@ant-design/x";
 import type { BubbleProps } from "@ant-design/x";
-import { Avatar, Badge, Button, Skeleton, Tag } from "antd";
+import { Badge, Button, Skeleton, Tag } from "antd";
 import {
   DownloadOutlined,
   IdcardOutlined,
   MenuOutlined,
   NodeIndexOutlined,
-  RobotOutlined,
-  UserOutlined,
 } from "@ant-design/icons";
 import type { AttachedProfile, ChatMessage, FlowEvent, Profile } from "../types";
 import { renderMarkdown } from "../lib/markdown";
@@ -61,19 +59,18 @@ const roles: Record<string, Partial<BubbleProps>> = {
   user: {
     placement: "end",
     variant: "filled",
-    avatar: <Avatar icon={<UserOutlined />} style={{ background: "#0f766e" }} />,
   },
   assistant: {
     placement: "start",
     variant: "outlined",
-    avatar: <Avatar icon={<RobotOutlined />} style={{ background: "#115e59" }} />,
   },
 };
 
-function markdownRender(content: string) {
+function markdownRender(content: string, className = "") {
+  const classes = ["markdown-body", className].filter(Boolean).join(" ");
   return (
     <div
-      className="markdown-body"
+      className={classes}
       dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
     />
   );
@@ -168,7 +165,7 @@ function pendingAssistantRender(pending: PendingState) {
     return (
       <div className="assistant-message-content assistant-live-content" aria-live="polite">
         {loadingBlock(true)}
-        {markdownRender(pending.body)}
+        {markdownRender(pending.body, pending.error ? "is-live-error" : "")}
       </div>
     );
   }
@@ -178,6 +175,16 @@ function pendingAssistantRender(pending: PendingState) {
       {loadingBlock()}
     </div>
   );
+}
+
+function pendingFromStreamingMessage(message: ChatMessage): PendingState {
+  return {
+    active: true,
+    body: message.body,
+    status: message.streamingStatus || "正在整理关键内容",
+    events: message.flow,
+    error: Boolean(message.streamingError),
+  };
 }
 
 function messageKey(index: number): string {
@@ -244,15 +251,19 @@ export function ChatWindow({
   }, [isSending, onSubmit, selectedProfiles]);
 
   const items = useMemo(() => {
+    let hasStreamingMessage = false;
     const list = messages.map((message, index) => {
       const isAssistant = message.role === "assistant";
       const isError = message.type === "error";
       const item: BubbleProps & { key: string | number } = {
         key: messageKey(index),
         role: message.role,
-        content: message.body,
+        content: message.body || message.streamingStatus || "正在思考",
       };
-      if (isAssistant && !isError) {
+      if (isAssistant && message.streaming) {
+        hasStreamingMessage = true;
+        item.messageRender = () => pendingAssistantRender(pendingFromStreamingMessage(message));
+      } else if (isAssistant && !isError) {
         item.messageRender = (text: string) =>
           assistantMessageRender(text, message, isMobile, handleSubmit);
       }
@@ -265,7 +276,8 @@ export function ChatWindow({
       return item;
     });
 
-    if (pending.active) {
+    const lastMessage = messages.at(-1);
+    if (pending.active && !hasStreamingMessage && lastMessage?.role !== "assistant") {
       list.push({
         key: LIVE_MESSAGE_KEY,
         role: "assistant",
@@ -514,7 +526,9 @@ export function ChatWindow({
                 aria-label="选择人物档案"
                 aria-expanded={profilePickerOpen}
                 icon={<IdcardOutlined />}
-                className={`composer-profile-button${selectedProfiles.length > 0 ? " is-active" : ""}`}
+                className={`composer-profile-button${
+                  selectedProfiles.length > 0 ? " is-active" : ""
+                }`}
                 onClick={() => setProfilePickerOpen((open) => !open)}
               >
                 <span className="composer-profile-button-text">{profileButtonText}</span>

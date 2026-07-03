@@ -122,6 +122,63 @@ def _summarize(profile: Profile) -> dict[str, Any]:
     }
 
 
+def _profile_to_memory_payload(profile: Profile) -> tuple[dict[str, Any], dict[str, Any]]:
+    five_elements = json.loads(profile.five_elements) if profile.five_elements else {}
+    bazi = {
+        "name": profile.name,
+        "gender": profile.gender,
+        "birth_year": profile.birth_year,
+        "birth_month": profile.birth_month,
+        "birth_day": profile.birth_day,
+        "birth_hour": profile.birth_hour,
+        "birth_minute": profile.birth_minute,
+        "input_calendar_type": profile.calendar_type,
+        "is_leap_month": bool(profile.is_leap_month)
+        if profile.is_leap_month is not None
+        else None,
+        "province": profile.province,
+        "city": profile.city,
+        "longitude": profile.longitude,
+        "year_pillar": profile.year_pillar,
+        "month_pillar": profile.month_pillar,
+        "day_pillar": profile.day_pillar,
+        "hour_pillar": profile.hour_pillar,
+        "five_elements": five_elements,
+    }
+    context = {
+        "profile_name": profile.name,
+        "calendar_type": profile.calendar_type,
+        "pillars": {
+            "year": profile.year_pillar,
+            "month": profile.month_pillar,
+            "day": profile.day_pillar,
+            "hour": profile.hour_pillar,
+        },
+    }
+    return bazi, context
+
+
+def _profile_memory_key(profile: Profile) -> str:
+    bazi, context = _profile_to_memory_payload(profile)
+    return memory_store.profile_memory_key(profile.relationship_type, bazi, context)
+
+
+def _first_present(*values: Any) -> Any:
+    for value in values:
+        if value is not None:
+            return value
+    return None
+
+
+def _optional_int(value: Any) -> int | None:
+    if value in (None, ""):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def save_profile(
     session_id: str,
     relationship_type: str,
@@ -158,6 +215,25 @@ def save_profile(
 
         profile.gender = bazi.get("gender")
         profile.calendar_type = bazi.get("input_calendar_type") or context.get("calendar_type")
+        profile.birth_year = _optional_int(
+            _first_present(bazi.get("birth_year"), bazi.get("actual_birth_year"))
+        )
+        profile.birth_month = _optional_int(
+            _first_present(bazi.get("birth_month"), bazi.get("actual_birth_month"))
+        )
+        profile.birth_day = _optional_int(
+            _first_present(bazi.get("birth_day"), bazi.get("actual_birth_day"))
+        )
+        profile.birth_hour = _optional_int(
+            _first_present(bazi.get("birth_hour"), bazi.get("solar_hour"))
+        )
+        profile.birth_minute = _optional_int(
+            _first_present(bazi.get("birth_minute"), bazi.get("solar_minute"))
+        )
+        leap = bazi.get("is_leap_month")
+        profile.is_leap_month = int(leap) if leap is not None else None
+        profile.province = bazi.get("province") or None
+        profile.city = bazi.get("city") or None
         longitude = bazi.get("longitude")
         profile.longitude = str(longitude) if longitude is not None else None
         profile.year_pillar = bazi.get("year_pillar") or pillars.get("year")
@@ -194,6 +270,7 @@ def upsert_manual_profile(
     session_id: str,
     data: dict[str, Any],
     profile_id: int | None = None,
+    user_id: str | None = None,
 ) -> dict[str, Any]:
     """Create or edit a person profile from explicit user input.
 
@@ -223,10 +300,12 @@ def upsert_manual_profile(
 
     with _Session() as db:  # type: Session
         profile: Profile | None = None
+        old_memory_key: str | None = None
         if profile_id is not None:
             profile = db.get(Profile, profile_id)
             if profile is None or profile.session_id != session_id:
                 raise LookupError("profile not found")
+            old_memory_key = _profile_memory_key(profile)
         if profile is None:
             profile = Profile(session_id=session_id, created_at=now)
             db.add(profile)
@@ -261,7 +340,26 @@ def upsert_manual_profile(
         profile.updated_at = now
         db.commit()
         db.refresh(profile)
-        return _summarize(profile)
+        summary = _summarize(profile)
+        bazi, context = _profile_to_memory_payload(profile)
+        relationship_type = profile.relationship_type
+        new_memory_key = memory_store.profile_memory_key(relationship_type, bazi, context)
+
+    if user_id:
+        try:
+            if old_memory_key and old_memory_key != new_memory_key:
+                memory_store.delete_memory_by_key(user_id, old_memory_key)
+            memory_store.remember_profile(
+                user_id,
+                relationship_type,
+                bazi,
+                context,
+                source_session_id=session_id,
+            )
+        except Exception:
+            # Manual profile persistence should not fail because long-term memory is unavailable.
+            pass
+    return summary
 
 
 def list_profiles(session_id: str) -> list[dict[str, Any]]:

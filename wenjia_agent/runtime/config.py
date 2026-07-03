@@ -19,6 +19,7 @@ class Settings(BaseSettings):
         default="sqlite+aiosqlite:///./wenjia_agent_sessions.db",
         alias="WENJIA_SESSION_DB_URL",
     )
+    session_history_limit: int | None = Field(default=40, alias="WENJIA_SESSION_HISTORY_LIMIT")
 
     # Harness loop controls.
     harness_max_turns: int = Field(default=16, alias="WENJIA_HARNESS_MAX_TURNS")
