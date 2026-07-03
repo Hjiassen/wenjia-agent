@@ -10,6 +10,10 @@
   --surface: #ffffff;
   --surface-soft: #f4f7f2;
   --shadow: 0 24px 70px rgba(31, 42, 46, 0.22);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
 }
 
 * {
@@ -20,6 +24,7 @@ html,
 body,
 #root {
   height: 100%;
+  min-height: 100%;
   margin: 0;
 }
 
@@ -32,6 +37,9 @@ body {
 /* ---------- Layout shell ---------- */
 .app-shell {
   height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .app-sider {
@@ -47,13 +55,22 @@ body {
 .app-content {
   position: relative;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  padding-right: var(--safe-right);
+  padding-left: var(--safe-left);
 }
 
 .app-drawer .chat-sider {
   height: 100%;
+}
+
+.app-drawer .chat-sider {
+  padding-top: calc(16px + var(--safe-top));
+  padding-bottom: calc(16px + var(--safe-bottom));
+  padding-left: calc(12px + var(--safe-left));
 }
 
 /* ---------- Sider ---------- */
@@ -275,6 +292,36 @@ body {
   margin: 0;
   color: var(--muted);
   font-size: 13px;
+  line-height: 1.55;
+}
+
+.pwa-install-suggestion {
+  color: var(--ink);
+}
+
+.pwa-install-suggestion p {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.pwa-install-suggestion p:first-child {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.pwa-install-suggestion p:last-child {
+  margin-bottom: 0;
+}
+
+.pwa-install-suggestion ul {
+  margin: 8px 0 10px;
+  padding-left: 1.25em;
+}
+
+.pwa-install-suggestion li {
+  margin: 6px 0;
   line-height: 1.55;
 }
 
@@ -1710,10 +1757,23 @@ body {
 
 /* ---------- Responsive / mobile ---------- */
 @media (max-width: 767px) {
+  .app-content {
+    min-width: 0;
+  }
+
+  .ant-modal-root .ant-modal-wrap {
+    padding: calc(12px + var(--safe-top)) calc(12px + var(--safe-right))
+      calc(12px + var(--safe-bottom)) calc(12px + var(--safe-left));
+  }
+
+  .ant-modal {
+    max-width: 100%;
+  }
+
   .chat-header {
     grid-template-columns: minmax(40px, 1fr) auto minmax(40px, 1fr);
-    height: 56px;
-    padding: 0 10px;
+    height: calc(56px + var(--safe-top));
+    padding: var(--safe-top) 10px 0;
   }
 
   .chat-header-actions {
@@ -1745,11 +1805,11 @@ body {
   }
 
   .chat-scroll {
-    padding: 16px 12px;
+    padding: 16px 12px max(16px, calc(12px + var(--safe-bottom)));
   }
 
   .chat-composer {
-    padding: 8px 12px 12px;
+    padding: 8px 12px calc(12px + var(--safe-bottom));
   }
 
   .chat-sender .ant-sender-input,
@@ -1763,6 +1823,7 @@ body {
 
   .profile-picker-panel {
     max-height: min(58vh, 460px);
+    max-height: min(58dvh, 460px);
     padding: 12px;
   }
 
@@ -1845,5 +1906,46 @@ body {
 
   .profile-form-grid.three {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .runflow-canvas-controls {
+    right: 10px;
+    bottom: calc(10px + var(--safe-bottom));
+    gap: 4px;
+    padding: 5px;
+  }
+
+  .runflow-canvas-controls .ant-btn,
+  .runflow-pan-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .runflow-zoom-value {
+    min-width: 42px;
+  }
+
+  .runflow-modal {
+    top: calc(10px + var(--safe-top));
+    right: 10px;
+    bottom: calc(10px + var(--safe-bottom));
+    left: 10px;
+    width: auto;
+    height: auto;
+    max-height: none;
+    border-radius: 12px;
+    transform: translate3d(0, 8px, 0) scale(0.98);
+  }
+
+  .runflow-root.is-open .runflow-modal {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  .runflow-head {
+    padding: 14px 14px 12px;
+  }
+
+  .runflow-head h2 {
+    font-size: 16px;
   }
 }

@@ -56,6 +56,19 @@ interface DragState {
   originY: number;
 }
 
+interface PointerPoint {
+  x: number;
+  y: number;
+}
+
+interface PinchState {
+  pointerIds: [number, number];
+  startDistance: number;
+  startCenterX: number;
+  startCenterY: number;
+  startViewport: CanvasViewport;
+}
+
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 1.8;
 const SCALE_STEP = 0.14;
@@ -73,6 +86,17 @@ function clampScale(value: number): number {
 
 function zoomLabel(scale: number): string {
   return `${Math.round(scale * 100)}%`;
+}
+
+function pointerDistance(first: PointerPoint, second: PointerPoint): number {
+  return Math.hypot(first.x - second.x, first.y - second.y);
+}
+
+function pointerCenter(first: PointerPoint, second: PointerPoint): PointerPoint {
+  return {
+    x: (first.x + second.x) / 2,
+    y: (first.y + second.y) / 2,
+  };
 }
 
 // Keep each conversation turn on its own canvas row. A row begins with the turn
@@ -100,6 +124,8 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
   const rows = useMemo(() => buildRows(turns), [turns]);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
+  const activePointersRef = useRef<Map<number, PointerPoint>>(new Map());
+  const pinchRef = useRef<PinchState | null>(null);
   const [viewport, setViewport] = useState<CanvasViewport>(DEFAULT_VIEWPORT);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -108,6 +134,8 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
     setViewport(DEFAULT_VIEWPORT);
     setIsDragging(false);
     dragRef.current = null;
+    pinchRef.current = null;
+    activePointersRef.current.clear();
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
@@ -147,25 +175,85 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
     [rows.length, viewport.scale, zoomTo],
   );
 
-  const handlePointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0) return;
-    const target = event.target as HTMLElement;
-    if (target.closest(".runflow-canvas-controls") || target.closest(".runflow-close")) {
-      return;
-    }
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      originX: viewport.x,
-      originY: viewport.y,
+  const startPinch = useCallback((target: HTMLDivElement) => {
+    const pointers = Array.from(activePointersRef.current.entries()).slice(0, 2);
+    if (pointers.length < 2) return;
+
+    const [[firstId, first], [secondId, second]] = pointers;
+    const distance = pointerDistance(first, second);
+    if (distance <= 0) return;
+
+    const rect = target.getBoundingClientRect();
+    const center = pointerCenter(first, second);
+    pinchRef.current = {
+      pointerIds: [firstId, secondId],
+      startDistance: distance,
+      startCenterX: center.x - rect.left,
+      startCenterY: center.y - rect.top,
+      startViewport: viewport,
     };
+    dragRef.current = null;
     setIsDragging(true);
-  }, [viewport.x, viewport.y]);
+  }, [viewport]);
+
+  const handlePointerDown = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      const target = event.target as HTMLElement;
+      if (target.closest(".runflow-canvas-controls") || target.closest(".runflow-close")) {
+        return;
+      }
+      event.preventDefault();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      activePointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+      if (activePointersRef.current.size >= 2) {
+        startPinch(event.currentTarget);
+        return;
+      }
+
+      dragRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        originX: viewport.x,
+        originY: viewport.y,
+      };
+      setIsDragging(true);
+    },
+    [startPinch, viewport.x, viewport.y],
+  );
 
   const handlePointerMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    if (activePointersRef.current.has(event.pointerId)) {
+      activePointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    }
+
+    const pinch = pinchRef.current;
+    if (pinch) {
+      const first = activePointersRef.current.get(pinch.pointerIds[0]);
+      const second = activePointersRef.current.get(pinch.pointerIds[1]);
+      if (!first || !second) return;
+
+      event.preventDefault();
+      const rect = event.currentTarget.getBoundingClientRect();
+      const center = pointerCenter(first, second);
+      const distance = pointerDistance(first, second);
+      const targetScale = clampScale(
+        pinch.startViewport.scale * (distance / pinch.startDistance),
+      );
+      const worldX = (pinch.startCenterX - pinch.startViewport.x) / pinch.startViewport.scale;
+      const worldY = (pinch.startCenterY - pinch.startViewport.y) / pinch.startViewport.scale;
+      const localCenterX = center.x - rect.left;
+      const localCenterY = center.y - rect.top;
+      setViewport({
+        x: localCenterX - worldX * targetScale,
+        y: localCenterY - worldY * targetScale,
+        scale: targetScale,
+      });
+      return;
+    }
+
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     event.preventDefault();
@@ -177,11 +265,21 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
   }, []);
 
   const stopDrag = useCallback((event: PointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
+    activePointersRef.current.delete(event.pointerId);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+
+    const pinch = pinchRef.current;
+    if (pinch?.pointerIds.includes(event.pointerId)) {
+      pinchRef.current = null;
+      dragRef.current = null;
+      setIsDragging(false);
+      return;
+    }
+
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null;
     setIsDragging(false);
   }, []);
@@ -230,7 +328,7 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
           {rows.length ? (
             <>
               <div className="runflow-canvas-controls" aria-label="画布缩放控制">
-                <Tooltip title="拖动画布">
+                <Tooltip title="拖动画布 / 双指缩放">
                   <span className="runflow-pan-icon" aria-hidden>
                     <DragOutlined />
                   </span>

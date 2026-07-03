@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Layout, App as AntdApp, Button, Drawer, Grid, Tooltip } from "antd";
 import { MenuUnfoldOutlined, PlusOutlined } from "@ant-design/icons";
 import { ChatSider } from "./components/ChatSider";
@@ -31,6 +31,7 @@ interface PendingState {
 }
 
 const IDLE_PENDING: PendingState = { active: false, body: "", status: "", events: [], error: false };
+let mobileInstallSuggestionShownThisLoad = false;
 
 function installGuideFor(target: PwaInstallTarget): {
   title: string;
@@ -168,6 +169,7 @@ export default function App() {
   const { send, cancel, isSending } = useChatStream();
   const { canInstall, installTarget, promptInstall } = usePwaInstall();
   const { modal } = AntdApp.useApp();
+  const installActionRef = useRef<() => Promise<void> | void>(() => undefined);
   const screens = Grid.useBreakpoint();
   // `md` is unset until the first measurement; treat only an explicit false as mobile.
   const isMobile = screens.md === false;
@@ -456,13 +458,8 @@ export default function App() {
     });
   }, [modal]);
 
-  const handleInstall = useCallback(async () => {
-    const result = await promptInstall();
-    if (result !== "unavailable") {
-      return;
-    }
-
-    const guide = installGuideFor(installTarget);
+  const showInstallGuide = useCallback((target: PwaInstallTarget) => {
+    const guide = installGuideFor(target);
     modal.info({
       title: guide.title,
       okText: "知道了",
@@ -478,7 +475,51 @@ export default function App() {
         </div>
       ),
     });
-  }, [installTarget, modal, promptInstall]);
+  }, [modal]);
+
+  const handleInstall = useCallback(async () => {
+    const result = await promptInstall();
+    if (result !== "unavailable") {
+      return;
+    }
+
+    showInstallGuide(installTarget);
+  }, [installTarget, promptInstall, showInstallGuide]);
+
+  useEffect(() => {
+    installActionRef.current = handleInstall;
+  }, [handleInstall]);
+
+  useEffect(() => {
+    if (!isMobile || !canInstall || mobileInstallSuggestionShownThisLoad) {
+      return;
+    }
+
+    mobileInstallSuggestionShownThisLoad = true;
+    const timer = window.setTimeout(() => {
+      const nativeInstall = installTarget === "native";
+      modal.confirm({
+        title: "建议安装到手机桌面",
+        okText: nativeInstall ? "立即安装" : "查看安装方法",
+        cancelText: "先继续使用",
+        width: 360,
+        content: (
+          <div className="pwa-install-suggestion">
+            <p>这样使用会更接近一个独立 App：</p>
+            <ul>
+              <li>下次可以从桌面直接打开，不用再找浏览器标签页。</li>
+              <li>手机浏览器地址栏占用更少，聊天和运行流视野更完整。</li>
+              <li>刷新或切回页面时体验更稳定，也更适合长期对话。</li>
+            </ul>
+            <p>已经安装到桌面后，这个提示就不会再出现。</p>
+          </div>
+        ),
+        onOk: () => installActionRef.current(),
+      });
+    }, 700);
+
+    return () => window.clearTimeout(timer);
+  }, [canInstall, installTarget, isMobile, modal]);
 
   const sider = (
     <ChatSider
