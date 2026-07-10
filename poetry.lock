@@ -1023,14 +1023,14 @@ voice-helpers = ["numpy (>=2.0.2)", "sounddevice (>=0.5.1)"]
 
 [[package]]
 name = "openai-agents"
-version = "0.17.7"
+version = "0.18.1"
 description = "OpenAI Agents SDK"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "openai_agents-0.17.7-py3-none-any.whl", hash = "sha256:51b5ae43756eea37032e430f95979ba3999af6b1ade397df6c0ffeaf1939646a"},
-    {file = "openai_agents-0.17.7.tar.gz", hash = "sha256:ca76e7f882c9d8f06e3dfb8064cc33bcb5a5f34a29816cb9af863f395964ff0c"},
+    {file = "openai_agents-0.18.1-py3-none-any.whl", hash = "sha256:d78b868911de3a202996dce1a333732c6f89e4dd11f83b7f2a7a62b9723dc360"},
+    {file = "openai_agents-0.18.1.tar.gz", hash = "sha256:689ad88c8f64435413dde707ca45fb42d55217ff6ef63aab3d638c33f78e04bf"},
 ]
 
 [package.dependencies]
@@ -2213,4 +2213,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0"
-content-hash = "42f73f2bae98908c1e10f55c6f22734e9e622bf499956fbdaadaab08f0882dcd"
+content-hash = "6964891c1335f263e98f89698cccc058b219d5898a53ba75a0144d8205c34861"
