@@ -994,14 +994,14 @@ ws = ["websockets (>=15.0.1)"]
 
 [[package]]
 name = "openai"
-version = "2.44.0"
+version = "2.46.0"
 description = "The official Python library for the openai API"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "openai-2.44.0-py3-none-any.whl", hash = "sha256:0a2a3ab2e29aeda368700f662ff9ba0f9df17ba4c54577a64e08b8115a3cc0ad"},
-    {file = "openai-2.44.0.tar.gz", hash = "sha256:68a5a5ffad82b8ff7d451c437529fb64f7c3b8123aaf0c021966a882d9e3947d"},
+    {file = "openai-2.46.0-py3-none-any.whl", hash = "sha256:672381db55efb3a1e2610f29304c130cccdd0b319bace4d492b2443cb64c1e7c"},
+    {file = "openai-2.46.0.tar.gz", hash = "sha256:0421e0735ac41451cad894af4cddf0435bfbf8cbc538ac0e15b3c062f2ddc06a"},
 ]
 
 [package.dependencies]
@@ -1023,21 +1023,21 @@ voice-helpers = ["numpy (>=2.0.2)", "sounddevice (>=0.5.1)"]
 
 [[package]]
 name = "openai-agents"
-version = "0.17.7"
+version = "0.18.3"
 description = "OpenAI Agents SDK"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "openai_agents-0.17.7-py3-none-any.whl", hash = "sha256:51b5ae43756eea37032e430f95979ba3999af6b1ade397df6c0ffeaf1939646a"},
-    {file = "openai_agents-0.17.7.tar.gz", hash = "sha256:ca76e7f882c9d8f06e3dfb8064cc33bcb5a5f34a29816cb9af863f395964ff0c"},
+    {file = "openai_agents-0.18.3-py3-none-any.whl", hash = "sha256:c6ed971fdeb34d39a9931787bd3960c1e84dc5d7345705794cc5cab8a1158d07"},
+    {file = "openai_agents-0.18.3.tar.gz", hash = "sha256:e637f5f5a50692ccbedb0e4f7f2e4f8e2facfcddd41142f35faf90c89b700fc3"},
 ]
 
 [package.dependencies]
 asyncpg = {version = ">=0.29.0", optional = true, markers = "extra == \"sqlalchemy\""}
 griffelib = ">=2,<3"
 mcp = {version = ">=1.19.0,<2", markers = "python_version >= \"3.10\""}
-openai = ">=2.36.0,<3"
+openai = ">=2.45.0,<3"
 pydantic = ">=2.12.2,<3"
 requests = ">=2.0,<3"
 sqlalchemy = {version = ">=2.0", optional = true, markers = "extra == \"sqlalchemy\""}
@@ -2213,4 +2213,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0"
-content-hash = "42f73f2bae98908c1e10f55c6f22734e9e622bf499956fbdaadaab08f0882dcd"
+content-hash = "6964891c1335f263e98f89698cccc058b219d5898a53ba75a0144d8205c34861"
