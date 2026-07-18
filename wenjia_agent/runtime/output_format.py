@@ -3,11 +3,12 @@
 Specialist Agents (fortune / relationship / naming) use structured
 ``output_type`` models, so ``result.final_output`` is a Pydantic object. Calling
 ``str()`` on it leaks the raw ``field=value`` repr to the UI. This module turns
-those reports into readable Markdown; plain-text outputs pass through unchanged.
+those reports into readable, table-free Markdown and normalizes plain-text replies.
 """
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from pydantic import BaseModel
@@ -22,6 +23,61 @@ from wenjia_agent.domain.schemas import (
 
 def _bullets(items: list[str], indent: str = "") -> list[str]:
     return [f"{indent}- {item}" for item in items if item]
+
+
+_TABLE_SEPARATOR_RE = re.compile(
+    r"^\s*\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)+\|?\s*$"
+)
+
+
+def _table_cells(line: str) -> list[str]:
+    return [cell.strip() for cell in line.strip().strip("|").split("|")]
+
+
+def _without_markdown_tables(text: str) -> str:
+    """Convert Markdown tables to readable bullets for text-first replies."""
+
+    lines = text.splitlines()
+    rendered: list[str] = []
+    index = 0
+    in_fence = False
+
+    while index < len(lines):
+        line = lines[index]
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            rendered.append(line)
+            index += 1
+            continue
+
+        is_table = (
+            not in_fence
+            and index + 1 < len(lines)
+            and "|" in line
+            and _TABLE_SEPARATOR_RE.match(lines[index + 1]) is not None
+        )
+        if not is_table:
+            rendered.append(line)
+            index += 1
+            continue
+
+        headers = _table_cells(line)
+        index += 2
+        rows: list[list[str]] = []
+        while index < len(lines) and "|" in lines[index] and lines[index].strip():
+            rows.append(_table_cells(lines[index]))
+            index += 1
+
+        for row in rows:
+            fields = [
+                f"**{header}**：{row[cell_index]}"
+                for cell_index, header in enumerate(headers)
+                if header and cell_index < len(row) and row[cell_index]
+            ]
+            if fields:
+                rendered.append(f"- {'；'.join(fields)}")
+
+    return "\n".join(rendered)
 
 
 def _section_md(section: AnalysisSection) -> list[str]:
@@ -111,14 +167,16 @@ def format_final_output(output: Any) -> str:
     """Convert an Agent final output into display-ready Markdown text."""
 
     if isinstance(output, str):
-        return output
-    if isinstance(output, FortuneReport):
-        return _fortune_md(output)
-    if isinstance(output, RelationshipReport):
-        return _relationship_md(output)
-    if isinstance(output, NamingReport):
-        return _naming_md(output)
-    if isinstance(output, BaseModel):
+        rendered = output
+    elif isinstance(output, FortuneReport):
+        rendered = _fortune_md(output)
+    elif isinstance(output, RelationshipReport):
+        rendered = _relationship_md(output)
+    elif isinstance(output, NamingReport):
+        rendered = _naming_md(output)
+    elif isinstance(output, BaseModel):
         # Unknown structured output — fall back to readable JSON rather than repr.
-        return output.model_dump_json(indent=2)
-    return str(output)
+        rendered = output.model_dump_json(indent=2)
+    else:
+        rendered = str(output)
+    return _without_markdown_tables(rendered)

@@ -2090,6 +2090,18 @@ body {
     grid-template-columns: 1fr;
   }
 
+  .assistant-waiting-title,
+  .assistant-waiting-status,
+  .assistant-live-content .markdown-body,
+  .assistant-live-content .markdown-body * {
+    color: rgba(31, 42, 46, 0.56) !important;
+  }
+
+  .assistant-live-content .markdown-body.is-live-error,
+  .assistant-live-content .markdown-body.is-live-error * {
+    color: var(--rose) !important;
+  }
+
   .message-suggestions .ant-prompts-item {
     padding: 9px 10px;
   }

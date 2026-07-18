@@ -4,6 +4,13 @@ const activeSessionKey = "wenjia-agent-web-active-session";
 const legacySessionKey = "wenjia-agent-web-session";
 const conversationsKey = "wenjia-agent-web-conversations";
 const clientIdKey = "wenjia-agent-web-client-id";
+const runFlowViewportKeyPrefix = "wenjia-agent-web-run-flow-viewport:";
+
+export interface StoredRunFlowViewport {
+  x: number;
+  y: number;
+  scale: number;
+}
 
 export function nowIso(): string {
   return new Date().toISOString();
@@ -262,6 +269,39 @@ export function loadActiveSessionId(): string | null {
 export function saveActiveSessionId(id: string): void {
   localStorage.setItem(activeSessionKey, id);
   localStorage.setItem(legacySessionKey, id);
+}
+
+export function loadRunFlowViewport(sessionId: string): StoredRunFlowViewport | null {
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(`${runFlowViewportKeyPrefix}${sessionId}`) || "null",
+    ) as Partial<StoredRunFlowViewport> | null;
+    if (
+      parsed &&
+      Number.isFinite(parsed.x) &&
+      Number.isFinite(parsed.y) &&
+      Number.isFinite(parsed.scale)
+    ) {
+      return { x: parsed.x!, y: parsed.y!, scale: parsed.scale! };
+    }
+  } catch {
+    // Ignore broken view state and start from the default canvas position.
+  }
+  return null;
+}
+
+export function saveRunFlowViewport(
+  sessionId: string,
+  viewport: StoredRunFlowViewport,
+): void {
+  try {
+    localStorage.setItem(
+      `${runFlowViewportKeyPrefix}${sessionId}`,
+      JSON.stringify(viewport),
+    );
+  } catch {
+    // Canvas persistence is best-effort and must never block closing the panel.
+  }
 }
 
 export function conversationTitle(conversation: Conversation): string {

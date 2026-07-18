@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import type { FlowEvent } from "../types";
 import { getClientId } from "../lib/storage";
+import { normalizeFinalOutput } from "../lib/streamText";
 
 export interface StreamResult {
   finalOutput: string;
@@ -80,16 +81,6 @@ function takeDisplayChunk(text: string): [string, string] {
   return [text, ""];
 }
 
-function collapseRepeatedFinalOutput(finalOutput: string, streamedOutput: string): string {
-  const streamed = streamedOutput.trim();
-  if (!streamed || !finalOutput.startsWith(streamedOutput)) {
-    return finalOutput;
-  }
-
-  const repeatedTail = finalOutput.slice(streamedOutput.length).trim();
-  return repeatedTail === streamed ? streamedOutput : finalOutput;
-}
-
 export function useChatStream() {
   const [isSending, setIsSending] = useState(false);
   const sendingRef = useRef(false);
@@ -143,6 +134,7 @@ export function useChatStream() {
         let streamedOutput = "";
         let displayedOutput = "";
         let queuedOutput = "";
+        let answerFinalized = false;
         let flushTimer: ReturnType<typeof setTimeout> | null = null;
         let flushResolvers: Array<() => void> = [];
 
@@ -197,6 +189,19 @@ export function useChatStream() {
           resolveFlushWaiters();
         };
 
+        const finalizeAnswer = (text: string) => {
+          if (flushTimer) {
+            clearTimeout(flushTimer);
+            flushTimer = null;
+          }
+          queuedOutput = "";
+          streamedOutput = text;
+          displayedOutput = text;
+          answerFinalized = true;
+          callbacks.onAnswerReplace?.(text);
+          resolveFlushWaiters();
+        };
+
         const waitForAnswerQueue = async () => {
           if (!queuedOutput && !flushTimer) {
             return;
@@ -235,14 +240,16 @@ export function useChatStream() {
 
             if (event.type === "answer_delta") {
               const delta = event.delta || event.content || "";
-              if (delta) {
+              if (delta && !answerFinalized) {
                 enqueueAnswer(delta);
               }
               continue;
             }
 
             if (event.type === "answer_reset") {
-              resetAnswer();
+              if (!answerFinalized) {
+                resetAnswer();
+              }
               continue;
             }
 
@@ -253,13 +260,12 @@ export function useChatStream() {
               if (event.success === false) {
                 throw new StreamFlowError(event.message || "Agent 请求失败。", events, resolvedSession);
               }
-              finalOutput = collapseRepeatedFinalOutput(
+              finalOutput = normalizeFinalOutput(
                 event.content || streamedOutput,
                 streamedOutput,
               );
-              if (finalOutput && finalOutput !== streamedOutput) {
-                resetAnswer();
-                enqueueAnswer(finalOutput);
+              if (finalOutput) {
+                finalizeAnswer(finalOutput);
               }
             } else if (event.type === "error") {
               throw new StreamFlowError(event.message || "Agent 请求失败。", events, resolvedSession);

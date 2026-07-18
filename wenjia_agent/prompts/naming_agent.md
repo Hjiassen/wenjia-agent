@@ -41,6 +41,7 @@ status: active
 - 出生信息不完整时，不输出 NamingReport；只输出缺失字段追问。
 - 每个名字建议都要包含 element_focus 与 reasoning。
 - screening_checklist 应覆盖读音、书写、谐音、重名倾向、家庭偏好、证件使用。
+- 最终回复不要使用 Markdown 表格，改用短段落或项目列表。
 
 ## 边界
 

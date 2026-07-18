@@ -13,6 +13,7 @@ import {
 } from "./lib/serviceWorker";
 import type { ChatMessage, Conversation, FlowEvent, Profile, SuggestedQuestion } from "./types";
 import { buildProfilePrompt, toAttachedProfile } from "./lib/profileText";
+import { shouldRefreshProfiles } from "./lib/profileEvents";
 import {
   createConversation,
   createSessionId,
@@ -533,6 +534,9 @@ export default function App() {
               streamingStatus: status,
               streamingError: liveError,
             });
+            if (shouldRefreshProfiles(event)) {
+              void loadProfiles(event.session_id || activeSession);
+            }
           },
           onAnswerDelta: (_delta, text) => {
             setPending((prev) => ({
@@ -836,6 +840,7 @@ export default function App() {
 
         <RunFlowPanel
           open={flowOpen}
+          sessionId={sessionId}
           turns={runFlowTurns}
           onClose={() => setFlowOpen(false)}
         />

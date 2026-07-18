@@ -26,6 +26,20 @@ def test_prompt_templates_load_and_are_active():
         assert "MVP 暂未启用" not in prompt
 
 
+def test_all_reply_prompts_avoid_markdown_tables():
+    prompt_files = [
+        "main_agent.md",
+        "profile_agent.md",
+        "fortune_analysis.md",
+        "relationship_agent.md",
+        "naming_agent.md",
+        "mystic_tools_agent.md",
+    ]
+
+    for prompt_file in prompt_files:
+        assert "不要使用 Markdown 表格" in load_prompt(prompt_file)
+
+
 def test_prompts_enforce_birth_info_gate():
     gated_prompt_files = [
         "main_agent.md",
