@@ -13,7 +13,7 @@
   "dependencies": {
     "@ant-design/icons": "^5.5.2",
     "@ant-design/x": "^1.6.1",
-    "antd": "^5.29.3",
+    "antd": "^6.5.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
