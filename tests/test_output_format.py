@@ -12,6 +12,23 @@ def test_plain_string_passes_through():
     assert format_final_output("你好") == "你好"
 
 
+def test_plain_markdown_table_is_rendered_as_text_list():
+    output = """## 大运概览
+
+| 阶段 | 提醒 |
+| --- | --- |
+| 甲子 | 先稳后进 |
+| 乙丑 | 注意节奏 |
+"""
+
+    rendered = format_final_output(output)
+
+    assert "| --- | --- |" not in rendered
+    assert "| 阶段 | 提醒 |" not in rendered
+    assert "- **阶段**：甲子；**提醒**：先稳后进" in rendered
+    assert "- **阶段**：乙丑；**提醒**：注意节奏" in rendered
+
+
 def test_fortune_report_renders_markdown():
     report = FortuneReport(
         report_title="事业命理分析报告",

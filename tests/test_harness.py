@@ -18,6 +18,21 @@ def test_clean_first_attempt_no_revision():
     assert result.rendered_text == "干净的回答"
 
 
+def test_verify_event_uses_compact_process_copy():
+    events = []
+
+    async def act(_correction):
+        return ActOutcome("ok", "干净的回答")
+
+    async def on_event(event):
+        events.append(event)
+
+    _run(act, lambda _outcome: [], HarnessPolicy(), on_event=on_event)
+
+    verify_event = next(event for event in events if event["type"] == "verify")
+    assert verify_event["message"] == "校验通过。"
+
+
 def test_revises_once_then_passes():
     calls = {"n": 0}
 

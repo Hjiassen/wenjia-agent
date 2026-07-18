@@ -17,6 +17,7 @@ import {
 } from "@ant-design/icons";
 import type { FlowEvent, FlowStage } from "../types";
 import { buildPipeline } from "../lib/flowModel";
+import { loadRunFlowViewport, saveRunFlowViewport } from "../lib/storage";
 import { StageCard } from "./StageCard";
 
 export interface RunFlowTurn {
@@ -29,6 +30,7 @@ export interface RunFlowTurn {
 
 interface RunFlowPanelProps {
   open: boolean;
+  sessionId: string;
   turns: RunFlowTurn[];
   onClose: () => void;
 }
@@ -120,7 +122,7 @@ function buildRows(turns: RunFlowTurn[]): FlowRow[] {
   });
 }
 
-export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
+export function RunFlowPanel({ open, sessionId, turns, onClose }: RunFlowPanelProps) {
   const rows = useMemo(() => buildRows(turns), [turns]);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const viewportStateRef = useRef<CanvasViewport>(DEFAULT_VIEWPORT);
@@ -133,14 +135,21 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
   const [isDragging, setIsDragging] = useState(false);
   const visibleRows = frozenRowsRef.current ?? rows;
 
+  const closePanel = useCallback(() => {
+    saveRunFlowViewport(sessionId, viewportStateRef.current);
+    onClose();
+  }, [onClose, sessionId]);
+
   useEffect(() => {
-    onCloseRef.current = onClose;
-  }, [onClose]);
+    onCloseRef.current = closePanel;
+  }, [closePanel]);
 
   useEffect(() => {
     if (!open) return;
-    viewportStateRef.current = DEFAULT_VIEWPORT;
-    setViewport(DEFAULT_VIEWPORT);
+    const restored = loadRunFlowViewport(sessionId) ?? DEFAULT_VIEWPORT;
+    const initialViewport = { ...restored, scale: clampScale(restored.scale) };
+    viewportStateRef.current = initialViewport;
+    setViewport(initialViewport);
     setIsDragging(false);
     dragRef.current = null;
     pinchRef.current = null;
@@ -151,7 +160,7 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [open, sessionId]);
 
   const updateViewport = useCallback((next: CanvasViewport | ((prev: CanvasViewport) => CanvasViewport)) => {
     const value = typeof next === "function" ? next(viewportStateRef.current) : next;
@@ -333,14 +342,14 @@ export function RunFlowPanel({ open, turns, onClose }: RunFlowPanelProps) {
 
   return (
     <div className={`runflow-root ${open ? "is-open" : ""}`.trim()} aria-hidden={!open}>
-      <div className="runflow-overlay" onClick={onClose} />
+      <div className="runflow-overlay" onClick={closePanel} />
       <div className="runflow-modal" role="dialog" aria-label="运行流" aria-modal="true">
         <header className="runflow-head">
           <div>
             <p className="eyebrow">推演过程</p>
             <h2>运行流 · 共 {turns.length} 轮</h2>
           </div>
-          <button type="button" className="runflow-close" onClick={onClose} aria-label="关闭">
+          <button type="button" className="runflow-close" onClick={closePanel} aria-label="关闭">
             ✕
           </button>
         </header>

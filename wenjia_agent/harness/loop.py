@@ -94,7 +94,7 @@ async def run_harness(
             "type": "verify",
             "success": passed,
             "attempts": attempts,
-            "message": "结果校验通过。" if passed else "结果校验仍有问题，已尽力修订。",
+            "message": "校验通过。" if passed else "校验完成。",
         }
     )
 
