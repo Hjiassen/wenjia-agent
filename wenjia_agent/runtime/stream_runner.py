@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 import time
 from collections.abc import AsyncIterator
 from typing import Any
@@ -19,7 +20,7 @@ from wenjia_agent.guardrails.input_checks import input_check_from_tripwire, run_
 from wenjia_agent.guardrails.output_checks import run_output_checks
 from wenjia_agent.harness.loop import ActOutcome, run_harness
 from wenjia_agent.harness.policy import default_policy
-from wenjia_agent.runtime import memory_store, profile_store
+from wenjia_agent.runtime import memory_store
 from wenjia_agent.runtime.config import settings
 from wenjia_agent.runtime.output_format import format_final_output
 from wenjia_agent.runtime.run_context import WenjiaRunContext
@@ -266,6 +267,9 @@ async def stream_agent_events(
     session_id: str,
     message: str,
     user_id: str | None = None,
+    *,
+    profile_context: list[dict[str, Any]] | None = None,
+    profile_writer: Callable[[str, dict[str, Any], dict[str, Any]], dict[str, Any]] | None = None,
 ) -> AsyncIterator[FlowEvent]:
     """Run the main Agent and yield normalized flow events."""
 
@@ -314,6 +318,8 @@ async def stream_agent_events(
                 session_id=session_id,
                 user_id=user_id,
                 memory_context=memory_context,
+                profile_context=profile_context or [],
+                profile_writer=profile_writer,
             )
 
             async def act(correction: str | None) -> ActOutcome:
@@ -323,7 +329,7 @@ async def stream_agent_events(
                 return run_output_checks(
                     outcome.rendered_text,
                     outcome.final_output,
-                    profile_store.list_profiles(session_id),
+                    profile_context or [],
                 )
 
             async def emit_harness_event(event: FlowEvent) -> None:

@@ -37,8 +37,8 @@ class Settings(BaseSettings):
     )
     input_max_chars: int = Field(default=8000, alias="WENJIA_INPUT_MAX_CHARS")
 
-    # Long-term memory. ``client_id``/``user_id`` comes from the embedding app;
-    # this project still does not implement accounts.
+    # Long-term memory is scoped to authenticated account identifiers supplied
+    # by the web transport.
     long_term_memory_enabled: bool = Field(
         default=True,
         alias="WENJIA_LONG_TERM_MEMORY_ENABLED",

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
+from typing import Any
 
 from agents import Runner
 from agents.exceptions import InputGuardrailTripwireTriggered, MaxTurnsExceeded
@@ -14,7 +16,6 @@ from wenjia_agent.guardrails.output_checks import run_output_checks
 from wenjia_agent.harness.loop import ActOutcome, run_harness
 from wenjia_agent.harness.policy import HarnessPolicy, default_policy
 from wenjia_agent.runtime import memory_store
-from wenjia_agent.runtime import profile_store
 from wenjia_agent.runtime.config import settings
 from wenjia_agent.runtime.models import build_run_config
 from wenjia_agent.runtime.output_format import format_final_output
@@ -25,7 +26,14 @@ from wenjia_agent.runtime.trace import TraceRecorder, TraceRunHooks, start_trace
 _MAX_TURNS_MESSAGE = "推演步骤过多已中止，请补充更完整的信息或简化问题后重试。"
 
 
-async def run_agent(session_id: str, message: str, user_id: str | None = None) -> str:
+async def run_agent(
+    session_id: str,
+    message: str,
+    user_id: str | None = None,
+    *,
+    profile_context: list[dict[str, Any]] | None = None,
+    profile_writer: Callable[[str, dict[str, Any], dict[str, Any]], dict[str, Any]] | None = None,
+) -> str:
     """Run the main Agent through the harness loop with session memory."""
 
     policy = default_policy()
@@ -54,6 +62,8 @@ async def run_agent(session_id: str, message: str, user_id: str | None = None) -
             trace,
             user_id=user_id,
             memory_context=memory_context,
+            profile_context=profile_context,
+            profile_writer=profile_writer,
             model_override=None,
         )
         trace.finish("success", fallback_used=False)
@@ -95,6 +105,8 @@ async def run_agent(session_id: str, message: str, user_id: str | None = None) -
                 trace,
                 user_id=user_id,
                 memory_context=memory_context,
+                profile_context=profile_context,
+                profile_writer=profile_writer,
                 model_override=policy.fallback_model,
             )
         except InputGuardrailTripwireTriggered as fallback_guardrail_exc:
@@ -131,6 +143,8 @@ async def _run_agent_once(
     *,
     user_id: str | None,
     memory_context: str,
+    profile_context: list[dict[str, Any]] | None,
+    profile_writer: Callable[[str, dict[str, Any], dict[str, Any]], dict[str, Any]] | None,
     model_override: str | None,
 ):
     session = SQLAlchemySession.from_url(
@@ -143,6 +157,8 @@ async def _run_agent_once(
         session_id=session_id,
         user_id=user_id,
         memory_context=memory_context,
+        profile_context=profile_context or [],
+        profile_writer=profile_writer,
     )
     hooks = TraceRunHooks(trace)
 
@@ -171,7 +187,7 @@ async def _run_agent_once(
         return run_output_checks(
             outcome.rendered_text,
             outcome.final_output,
-            profile_store.list_profiles(session_id),
+            profile_context or [],
         )
 
     return await run_harness(act, verify, policy, on_event=trace.aemit)

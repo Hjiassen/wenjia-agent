@@ -1,6 +1,5 @@
 import { useCallback, useRef, useState } from "react";
 import type { FlowEvent } from "../types";
-import { getClientId } from "../lib/storage";
 import { normalizeFinalOutput } from "../lib/streamText";
 
 export interface StreamResult {
@@ -96,6 +95,7 @@ export function useChatStream() {
       message: string,
       sessionId: string,
       callbacks: StreamCallbacks,
+      profileIds: number[] = [],
     ): Promise<StreamResult> => {
       if (sendingRef.current) {
         throw new Error("已有推演正在进行。");
@@ -118,7 +118,7 @@ export function useChatStream() {
         const response = await fetch("/api/chat/stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message, session_id: sessionId, client_id: getClientId() }),
+          body: JSON.stringify({ message, session_id: sessionId, profile_ids: profileIds }),
           signal: controller.signal,
         });
 

@@ -8,7 +8,7 @@ from wenjia_agent.core.city_data import get_cities, get_provinces
 from wenjia_agent.domain.context_builders import build_bazi_context
 from wenjia_agent.domain.bazi_adapter import BaziAdapter
 from wenjia_agent.domain.schemas import BaziResult, BirthInfo, ToolResult
-from wenjia_agent.runtime import memory_store, profile_store
+from wenjia_agent.runtime import memory_store
 from wenjia_agent.runtime.run_context import WenjiaRunContext
 
 PROFILE_RELATIONSHIPS = {"本人", "父亲", "母亲", "配偶", "孩子", "其他"}
@@ -449,22 +449,15 @@ def _autosave_subject(ctx: RunContextWrapper[WenjiaRunContext] | None, result: d
     if not isinstance(result, dict) or not result.get("ok") or result.get("from_cache"):
         return
     run_context = getattr(ctx, "context", None)
-    session_id = getattr(run_context, "session_id", None) if run_context else None
-    if not session_id:
-        return
     data = result.get("data") or {}
     bazi = data.get("bazi") or {}
     context = data.get("context") or {}
     if not bazi or not context:
         return
     try:
-        profile_store.save_profile(
-            session_id,
-            "本人",
-            bazi,
-            context,
-            user_id=getattr(run_context, "user_id", None),
-        )
+        profile_writer = getattr(run_context, "profile_writer", None)
+        if profile_writer is not None:
+            profile_writer("本人", bazi, context)
     except Exception:  # noqa: BLE001 - persistence is best-effort, never break charting.
         pass
 
@@ -495,24 +488,17 @@ def _save_profile(
     bazi = data.get("bazi") or {}
     context = data.get("context") or {}
 
-    session_id = getattr(run_context, "session_id", None) if run_context else None
-    if not session_id:
-        # No session to attach to (e.g. a bare tool call) — chart only, do not persist.
+    profile_writer = getattr(run_context, "profile_writer", None) if run_context else None
+    if profile_writer is None:
         return ToolResult(
-            ok=True,
+            ok=False,
             tool_name="save_profile_tool",
             data={"saved": False, "relationship_type": relationship, "context": context},
-            message="未提供会话标识，已完成排盘但未存档。",
+            message="必须登录后才能保存人物档案。",
             warnings=built.get("warnings", []),
         ).model_dump()
 
-    saved = profile_store.save_profile(
-        session_id=session_id,
-        relationship_type=relationship,
-        bazi=bazi,
-        context=context,
-        user_id=getattr(run_context, "user_id", None),
-    )
+    saved = profile_writer(relationship, bazi, context)
     return ToolResult(
         ok=True,
         tool_name="save_profile_tool",
@@ -566,19 +552,17 @@ def save_profile_tool(
 
 
 def _list_profiles(run_context: WenjiaRunContext | None) -> dict:
-    session_id = getattr(run_context, "session_id", None) if run_context else None
-    if not session_id:
+    explicit_profiles = getattr(run_context, "profile_context", None) if run_context else None
+    if explicit_profiles:
         return ToolResult(
             ok=True,
             tool_name="list_profiles_tool",
-            data={"profiles": []},
-            message="未提供会话标识，无法读取档案。",
+            data={"profiles": explicit_profiles},
         ).model_dump()
-
     return ToolResult(
         ok=True,
         tool_name="list_profiles_tool",
-        data={"profiles": profile_store.list_profiles(session_id)},
+        data={"profiles": explicit_profiles or []},
     ).model_dump()
 
 

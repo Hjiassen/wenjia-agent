@@ -9,6 +9,7 @@ import {
   Form,
   Input,
   Modal,
+  Popconfirm,
   Segmented,
   Select,
   Tag,
@@ -17,12 +18,12 @@ import {
 } from "antd";
 import {
   CheckCircleFilled,
+  DeleteOutlined,
   EditOutlined,
   PlusOutlined,
 } from "@ant-design/icons";
 import type { Profile, ProfilePayload } from "../types";
 import { compactBirth } from "../lib/profileText";
-import { getClientId } from "../lib/storage";
 
 const PILLAR_LABELS: Array<[keyof Profile["pillars"], string]> = [
   ["year", "年"],
@@ -99,7 +100,6 @@ interface ProfileFormValues {
 }
 
 interface ProfilePanelProps {
-  sessionId: string;
   profiles: Profile[];
   selectedProfileIds: number[];
   onSelectedProfileIdsChange: (ids: number[]) => void;
@@ -114,7 +114,6 @@ function toPayload(values: ProfileFormValues): ProfilePayload {
   const birthMinute = typeof birthTime[1] === "number" ? birthTime[1] : null;
 
   return {
-    client_id: getClientId(),
     name: values.name.trim(),
     relationship_type: values.relationship_type || "本人",
     gender: values.gender || null,
@@ -170,7 +169,6 @@ function fromProfile(profile?: Profile): ProfileFormValues {
 }
 
 export function ProfilePanel({
-  sessionId,
   profiles,
   selectedProfileIds,
   onSelectedProfileIdsChange,
@@ -182,6 +180,8 @@ export function ProfilePanel({
   const [formValues, setFormValues] = useState<ProfileFormValues>(() => fromProfile());
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [recycleOpen, setRecycleOpen] = useState(false);
+  const [deletedProfiles, setDeletedProfiles] = useState<Profile[]>([]);
   const [locationOptions, setLocationOptions] = useState<CascaderOption[]>(
     FALLBACK_LOCATION_OPTIONS,
   );
@@ -228,6 +228,24 @@ export function ProfilePanel({
     setModalOpen(true);
   };
 
+  const loadDeletedProfiles = async () => {
+    const response = await fetch("/api/profiles/deleted", { credentials: "include" });
+    const payload = await response.json().catch(() => null);
+    setDeletedProfiles(Array.isArray(payload?.profiles) ? payload.profiles : []);
+    setRecycleOpen(true);
+  };
+
+  const restoreProfile = async (profile: Profile) => {
+    const response = await fetch(`/api/profiles/${profile.id}/restore`, { method: "POST", credentials: "include" });
+    if (!response.ok) {
+      message.error((await response.json().catch(() => null))?.detail || "恢复档案失败");
+      return;
+    }
+    message.success("档案已恢复");
+    setDeletedProfiles((items) => items.filter((item) => item.id !== profile.id));
+    onChanged();
+  };
+
   useEffect(() => {
     let cancelled = false;
     fetch("/api/profiles/meta/cities")
@@ -270,9 +288,7 @@ export function ProfilePanel({
     setSaving(true);
     try {
       const payload = toPayload(values);
-      const url = editing
-        ? `/api/profiles/${encodeURIComponent(sessionId)}/${editing.id}`
-        : `/api/profiles/${encodeURIComponent(sessionId)}`;
+      const url = editing ? `/api/profiles/${editing.id}` : "/api/profiles";
       const response = await fetch(url, {
         method: editing ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -296,6 +312,18 @@ export function ProfilePanel({
     }
   };
 
+  const handleDelete = async (profile: Profile) => {
+    try {
+      const response = await fetch(`/api/profiles/${profile.id}`, { method: "DELETE", credentials: "include" });
+      if (!response.ok) throw new Error("删除档案失败");
+      onSelectedProfileIdsChange(selectedProfileIds.filter((id) => id !== profile.id));
+      message.success("档案已移入回收站");
+      onChanged();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "删除档案失败");
+    }
+  };
+
   return (
     <section className="profile-panel profile-picker-panel">
       <header className="profile-panel-head profile-picker-head">
@@ -312,6 +340,7 @@ export function ProfilePanel({
         <Button type="primary" size="small" icon={<PlusOutlined />} onClick={openCreate}>
           新增
         </Button>
+        <Button size="small" onClick={() => void loadDeletedProfiles()}>回收站</Button>
       </header>
 
       {profiles.length > 0 && (
@@ -388,6 +417,9 @@ export function ProfilePanel({
                     编辑
                   </Button>
                 </Tooltip>
+                <Popconfirm title="将档案移入回收站？" okText="删除" cancelText="取消" okButtonProps={{ danger: true }} onConfirm={() => void handleDelete(profile)}>
+                  <Button size="small" type="text" danger icon={<DeleteOutlined />} aria-label={`删除${profile.name}`} onClick={(event) => event.stopPropagation()} />
+                </Popconfirm>
               </article>
             );
           })}
@@ -482,6 +514,15 @@ export function ProfilePanel({
             </Form.Item>
           </div>
         </Form>
+      </Modal>
+
+      <Modal title="档案回收站" open={recycleOpen} onCancel={() => setRecycleOpen(false)} footer={null} destroyOnClose>
+        {deletedProfiles.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="回收站为空" /> : deletedProfiles.map((profile) => (
+          <div key={profile.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <span>{profile.name} · {profile.relationship_type}</span>
+            <Button size="small" onClick={() => void restoreProfile(profile)}>恢复</Button>
+          </div>
+        ))}
       </Modal>
 
     </section>
