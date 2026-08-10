@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable
 
 REPEAT_TOOL_NOTE = "排盘结果已生成，请直接基于现有结果输出或分析，不要再次调用排盘工具。"
 
@@ -23,6 +23,8 @@ class WenjiaRunContext:
     session_id: str | None = None
     user_id: str | None = None
     memory_context: str = ""
+    profile_context: list[dict[str, Any]] = field(default_factory=list)
+    profile_writer: Callable[[str, dict[str, Any], dict[str, Any]], dict[str, Any]] | None = None
     tool_cache: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def cache_key(self, tool_name: str, arguments: dict[str, Any]) -> str:

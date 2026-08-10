@@ -1,10 +1,22 @@
 import type { ChatMessage, Conversation, FlowEvent } from "../types";
 
 const activeSessionKey = "wenjia-agent-web-active-session";
-const legacySessionKey = "wenjia-agent-web-session";
 const conversationsKey = "wenjia-agent-web-conversations";
-const clientIdKey = "wenjia-agent-web-client-id";
 const runFlowViewportKeyPrefix = "wenjia-agent-web-run-flow-viewport:";
+let storageNamespace = "auth-pending";
+
+function scopedKey(base: string): string {
+  return `${base}:${storageNamespace}`;
+}
+
+export function setStorageNamespace(namespace: string): void {
+  storageNamespace = namespace.trim() || "auth-pending";
+}
+
+export function clearScopedConversationStorage(): void {
+  localStorage.removeItem(scopedKey(conversationsKey));
+  localStorage.removeItem(scopedKey(activeSessionKey));
+}
 
 export interface StoredRunFlowViewport {
   x: number;
@@ -43,16 +55,6 @@ function fallbackUuid(): string {
 
 export function createSessionId(): string {
   return `web:${fallbackUuid()}`;
-}
-
-export function getClientId(): string {
-  const existing = localStorage.getItem(clientIdKey);
-  if (existing) {
-    return existing;
-  }
-  const created = `client:${fallbackUuid()}`;
-  localStorage.setItem(clientIdKey, created);
-  return created;
 }
 
 export function createConversation(id: string = createSessionId()): Conversation {
@@ -243,8 +245,12 @@ function normalizeConversation(value: unknown): Conversation | null {
 }
 
 export function loadConversations(): Conversation[] {
+  if (storageNamespace === "auth-pending") {
+    return [];
+  }
   try {
-    const parsed = JSON.parse(localStorage.getItem(conversationsKey) || "[]");
+    const raw = localStorage.getItem(scopedKey(conversationsKey)) ?? "[]";
+    const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
       return parsed
         .map(normalizeConversation)
@@ -257,24 +263,30 @@ export function loadConversations(): Conversation[] {
 }
 
 export function saveConversations(conversations: Conversation[]): void {
-  localStorage.setItem(conversationsKey, JSON.stringify(conversations.map(conversationForStorage)));
+  if (storageNamespace === "auth-pending") {
+    return;
+  }
+  localStorage.setItem(scopedKey(conversationsKey), JSON.stringify(conversations.map(conversationForStorage)));
 }
 
 export function loadActiveSessionId(): string | null {
-  return (
-    localStorage.getItem(activeSessionKey) || localStorage.getItem(legacySessionKey) || null
-  );
+  if (storageNamespace === "auth-pending") {
+    return null;
+  }
+  return localStorage.getItem(scopedKey(activeSessionKey)) || null;
 }
 
 export function saveActiveSessionId(id: string): void {
-  localStorage.setItem(activeSessionKey, id);
-  localStorage.setItem(legacySessionKey, id);
+  if (storageNamespace === "auth-pending") {
+    return;
+  }
+  localStorage.setItem(scopedKey(activeSessionKey), id);
 }
 
 export function loadRunFlowViewport(sessionId: string): StoredRunFlowViewport | null {
   try {
     const parsed = JSON.parse(
-      localStorage.getItem(`${runFlowViewportKeyPrefix}${sessionId}`) || "null",
+      localStorage.getItem(`${runFlowViewportKeyPrefix}${storageNamespace}:${sessionId}`) || "null",
     ) as Partial<StoredRunFlowViewport> | null;
     if (
       parsed &&
@@ -296,7 +308,7 @@ export function saveRunFlowViewport(
 ): void {
   try {
     localStorage.setItem(
-      `${runFlowViewportKeyPrefix}${sessionId}`,
+      `${runFlowViewportKeyPrefix}${storageNamespace}:${sessionId}`,
       JSON.stringify(viewport),
     );
   } catch {

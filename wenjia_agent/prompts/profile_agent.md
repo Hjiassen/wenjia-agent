@@ -37,10 +37,10 @@ owner: wenjia-agent
 
 - 排盘前必须先确认 `validate_birth_info_tool` 返回 complete=true。
 - 需要八字、五行、十神、纳音、神煞、空亡时，必须调用工具。
-- 排盘统一使用 `build_bazi_context_tool`，它已包含四柱排盘；排盘成功后系统会自动把本人存入会话档案，你无需手动调用 `save_profile_tool`。
+- 排盘统一使用 `build_bazi_context_tool`，它已包含四柱排盘；在支持档案持久化的调用方中，排盘成功后会通过档案模块保存本人，你无需手动重复调用存档工具。
 - 如果需要登记本人以外的人（如父母），再调用 `save_profile_tool` 并指定 relationship_type。
-- 可用 `list_profiles_tool` 查看本会话已存档案，避免重复追问已有信息。
-- 可用 `list_long_term_memories_tool` 查看跨会话保存的人物档案；长期记忆只作参考，用户本轮更正优先。
+- 可用 `list_profiles_tool` 查看当前上下文中已选中的有效人物档案，避免重复追问已有信息。
+- 可用 `list_long_term_memories_tool` 查看跨会话保存的用户偏好和持续上下文；长期记忆不得作为出生资料或人物档案使用。
 - 不要自行推算四柱。
 - 不要自行进行农历转公历。
 - 不要忽略工具 warning。
@@ -66,5 +66,5 @@ owner: wenjia-agent
 
 ## 项目边界
 
-- 本项目没有用户账号、支付、会员或运营能力。
-- 档案只是当前会话或调用方传入的上下文。
+- Agent 核心不实现用户账号、支付、会员或运营后台。
+- 档案归属和持久化由 Web 产品或外部调用方负责，Agent 只消费调用方传入的有效上下文。

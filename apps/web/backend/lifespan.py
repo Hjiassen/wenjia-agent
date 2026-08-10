@@ -7,13 +7,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from wenjia_agent.runtime import memory_store, profile_store
+from apps.web.backend.modules import migrations
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Ensure the person-profile table exists before the first chart is saved."""
 
-    profile_store.init_db()
-    memory_store.init_db()
+    migrations.run_migrations()
     yield

@@ -45,6 +45,144 @@ body {
   min-height: 100dvh;
 }
 
+.auth-loading-shell {
+  display: grid;
+  place-items: center;
+  background: var(--paper);
+}
+
+.app-shell.is-auth-locked {
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ---------- Authentication ---------- */
+.auth-modal-root .ant-modal-mask {
+  background: rgba(20, 35, 34, 0.34) !important;
+  backdrop-filter: blur(2px);
+}
+
+.auth-modal-wrap {
+  padding: 24px;
+}
+
+.auth-modal-wrap .ant-modal {
+  max-width: 100%;
+  padding-bottom: 0;
+}
+
+.auth-modal .ant-modal-content {
+  overflow: hidden;
+  padding: 28px 28px 26px;
+  border: 1px solid rgba(15, 118, 110, 0.16);
+  border-radius: 8px;
+  box-shadow: 0 28px 80px rgba(20, 49, 46, 0.28);
+}
+
+.auth-dialog-head {
+  margin-bottom: 20px;
+}
+
+.auth-dialog-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 18px;
+  color: var(--teal-dark);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.auth-dialog-mark {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--teal-dark);
+  color: #fff;
+  font-family: "STKaiti", "KaiTi", serif;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.auth-dialog-head h2 {
+  margin: 0 0 7px;
+  color: var(--ink);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.auth-dialog-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.auth-mode-switch {
+  min-height: 42px;
+  margin-bottom: 20px;
+  padding: 4px;
+  border-radius: 7px;
+  background: #edf2f0;
+}
+
+.auth-mode-switch .ant-segmented-item {
+  min-height: 34px;
+  border-radius: 5px;
+}
+
+.auth-mode-switch .ant-segmented-item-label {
+  min-height: 34px;
+  line-height: 34px;
+}
+
+.auth-form .ant-form-item {
+  margin-bottom: 17px;
+}
+
+.auth-form .ant-form-item-label {
+  padding-bottom: 6px;
+}
+
+.auth-form .ant-form-item-label > label {
+  color: #354449;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.auth-form .ant-input-affix-wrapper {
+  min-height: 46px;
+  border-radius: 7px;
+  box-shadow: none;
+}
+
+.auth-form .ant-input-prefix {
+  margin-inline-end: 10px;
+  color: #71807f;
+}
+
+.auth-form .ant-input-affix-wrapper-focused {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
+}
+
+.auth-submit.ant-btn {
+  min-height: 46px;
+  margin-top: 3px;
+  border-radius: 7px;
+  font-weight: 600;
+  transition: transform 180ms ease, background-color 180ms ease;
+}
+
+.auth-submit.ant-btn:active {
+  transform: translateY(1px);
+}
+
 .app-sider {
   border-right: 1px solid var(--line);
   background: #fff !important;
@@ -1938,6 +2076,62 @@ body {
 
   .ant-modal {
     max-width: 100%;
+  }
+
+  .auth-modal-wrap.ant-modal-centered {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .auth-modal-wrap.ant-modal-centered::before {
+    display: none;
+  }
+
+  .auth-modal-wrap .auth-modal {
+    top: auto;
+    width: 100% !important;
+    max-width: none;
+    margin: 0;
+  }
+
+  .auth-modal .ant-modal-content {
+    max-height: calc(var(--visual-viewport-height, 100dvh) - var(--safe-top));
+    overflow-y: auto;
+    padding: 22px max(20px, calc(18px + var(--safe-right)))
+      calc(22px + var(--safe-bottom)) max(20px, calc(18px + var(--safe-left)));
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 8px 8px 0 0;
+    overscroll-behavior: contain;
+  }
+
+  .auth-dialog-head {
+    margin-bottom: 17px;
+  }
+
+  .auth-dialog-brand {
+    margin-bottom: 14px;
+  }
+
+  .auth-dialog-head h2 {
+    font-size: 22px;
+  }
+
+  .auth-mode-switch {
+    margin-bottom: 17px;
+  }
+
+  .auth-form .ant-input,
+  .auth-form .ant-input-password input {
+    font-size: 16px;
+  }
+
+  .auth-form .ant-input-affix-wrapper,
+  .auth-submit.ant-btn {
+    min-height: 48px;
   }
 
   .profile-modal .ant-modal-body {

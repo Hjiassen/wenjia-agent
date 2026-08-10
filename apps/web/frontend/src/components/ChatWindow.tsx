@@ -408,13 +408,12 @@ export function ChatWindow({
     ) : null;
 
   const profilePicker = (
-    <ProfilePanel
-      sessionId={sessionId}
-      profiles={profiles}
+      <ProfilePanel
+        profiles={profiles}
       selectedProfileIds={selectedProfileIds}
       onSelectedProfileIdsChange={onSelectedProfileIdsChange}
-      onChanged={onProfilesChanged}
-    />
+        onChanged={onProfilesChanged}
+      />
   );
 
   return (

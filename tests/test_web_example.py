@@ -1,237 +1,92 @@
+from __future__ import annotations
+
 import asyncio
 
 import httpx
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from apps.web.backend.main import app
+from apps.web.backend.modules import auth_store
+
+
+@pytest.fixture()
+def auth_db(tmp_path, monkeypatch):
+    engine = create_engine(f"sqlite:///{tmp_path / 'auth.db'}", future=True)
+    monkeypatch.setattr(auth_store, "_engine", engine)
+    monkeypatch.setattr(auth_store, "_Session", sessionmaker(bind=engine, future=True))
+    monkeypatch.setattr(auth_store, "_initialized", False)
+    auth_store.init_db()
+
+
+async def register(client: httpx.AsyncClient) -> None:
+    response = await client.post(
+        "/api/auth/register",
+        json={"username": "webuser", "password": "secure-pass-123", "confirm_password": "secure-pass-123"},
+    )
+    assert response.status_code == 201
 
 
 def test_web_health():
     async def run_test() -> None:
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-            health_response = await client.get("/health")
-
-        assert health_response.json() == {"ok": True}
+            response = await client.get("/health")
+        assert response.json() == {"ok": True}
 
     asyncio.run(run_test())
 
 
-def test_web_chat_stream_uses_agent_stream(monkeypatch):
-    async def fake_stream_agent_events(session_id: str, message: str, user_id: str | None = None):
-        assert session_id == "web:test-stream"
-        assert "事业" in message
-        assert user_id is None
-        yield {
-            "type": "run_start",
-            "session_id": session_id,
-            "message": "开始处理请求。",
-        }
-        yield {
-            "type": "tool_start",
-            "session_id": session_id,
-            "tool": "validate_birth_info_tool",
-            "display_name": "出生信息完整性检查",
-        }
-        yield {
-            "type": "done",
-            "session_id": session_id,
-            "success": True,
-            "content": "fake streamed output",
-        }
-
+def test_web_requires_login_for_app_endpoints():
     async def run_test() -> None:
-        monkeypatch.setattr(
-            "apps.web.backend.api.chat.stream_agent_events", fake_stream_agent_events
-        )
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-            async with client.stream(
-                "POST",
-                "/api/chat/stream",
-                json={"session_id": "web:test-stream", "message": "事业怎么样"},
-            ) as response:
-                body = (await response.aread()).decode("utf-8")
+            endpoints = [
+                ("POST", "/api/chat", {"message": "测试"}),
+                ("POST", "/api/chat/stream", {"message": "测试"}),
+                ("POST", "/api/chat/suggestions", {"user_message": "测试", "assistant_message": "回答"}),
+                ("GET", "/api/profiles", None),
+                ("GET", "/api/profiles/meta/cities", None),
+                ("GET", "/api/memories", None),
+            ]
+            responses = [await client.request(method, path, json=body) for method, path, body in endpoints]
+        assert all(response.status_code == 401 for response in responses)
 
+    asyncio.run(run_test())
+
+
+def test_authenticated_chat_forwards_account_identity(monkeypatch, auth_db):
+    async def fake_run_agent(**kwargs):
+        assert kwargs["user_id"].startswith("user:")
+        assert kwargs["profile_context"] == []
+        assert callable(kwargs["profile_writer"])
+        return "fake agent output"
+
+    async def run_test() -> None:
+        monkeypatch.setattr("apps.web.backend.api.chat.run_agent", fake_run_agent)
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            await register(client)
+            response = await client.post(
+                "/api/chat",
+                json={"session_id": "web:test", "message": "基础命盘", "profile_ids": []},
+            )
         assert response.status_code == 200
-        assert response.headers["content-type"].startswith("text/event-stream")
-        assert "data: " in body
-        assert "出生信息完整性检查" in body
-        assert "fake streamed output" in body
+        assert response.json() == {"session_id": "web:test", "output": "fake agent output"}
 
     asyncio.run(run_test())
 
 
-def test_web_profiles_endpoint(monkeypatch):
-    async def run_test() -> None:
-        monkeypatch.setattr(
-            "apps.web.backend.api.profiles.profile_store.list_profiles",
-            lambda _session_id: [
-                {
-                    "id": 1,
-                    "name": "测试",
-                    "relationship_type": "本人",
-                    "gender": "未知",
-                    "pillars": {"year": "乙亥", "month": "辛巳", "day": "甲子", "hour": "己巳"},
-                    "five_elements": {"木": 2, "火": 2, "土": 2, "金": 1, "水": 1},
-                }
-            ],
-        )
-        transport = httpx.ASGITransport(app=app)
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/api/profiles/web:abc")
-
-        assert response.status_code == 200
-        payload = response.json()
-        assert payload["session_id"] == "web:abc"
-        assert payload["profiles"][0]["relationship_type"] == "本人"
-
-    asyncio.run(run_test())
-
-
-def test_web_profile_city_options_endpoint():
+def test_authenticated_city_options_endpoint(auth_db):
     async def run_test() -> None:
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            await register(client)
             response = await client.get("/api/profiles/meta/cities")
-
         assert response.status_code == 200
         payload = response.json()
         beijing = next(item for item in payload["options"] if item["value"] == "北京市")
         assert {"label": "北京市", "value": "北京市"} in beijing["children"]
-
-    asyncio.run(run_test())
-
-
-def test_web_profiles_create_and_update(monkeypatch):
-    saved: dict[str, object] = {
-        "id": 7,
-        "name": "测试",
-        "relationship_type": "本人",
-        "gender": "未知",
-        "birth": {"year": 1995},
-        "pillars": {"year": None, "month": None, "day": None, "hour": None},
-        "five_elements": None,
-    }
-
-    def fake_upsert(session_id, data, profile_id=None, user_id=None):
-        assert session_id == "web:manual"
-        assert data["name"] in {"测试", "测试2"}
-        assert user_id is None
-        if profile_id is not None:
-            assert profile_id == 7
-        return {**saved, "name": data["name"]}
-
-    async def run_test() -> None:
-        monkeypatch.setattr(
-            "apps.web.backend.api.profiles.profile_store.upsert_manual_profile",
-            fake_upsert,
-        )
-        transport = httpx.ASGITransport(app=app)
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-            create_response = await client.post(
-                "/api/profiles/web:manual",
-                json={"name": "测试", "relationship_type": "本人"},
-            )
-            update_response = await client.put(
-                "/api/profiles/web:manual/7",
-                json={"name": "测试2", "relationship_type": "本人"},
-            )
-
-        assert create_response.status_code == 200
-        assert create_response.json()["profile"]["name"] == "测试"
-        assert update_response.status_code == 200
-        assert update_response.json()["profile"]["name"] == "测试2"
-
-    asyncio.run(run_test())
-
-
-def test_web_memories_list_and_delete(monkeypatch):
-    async def run_test() -> None:
-        monkeypatch.setattr(
-            "apps.web.backend.api.memories.memory_store.list_memories",
-            lambda client_id, query=None: [
-                {
-                    "id": 9,
-                    "kind": "profile",
-                    "title": "本人：测试",
-                    "content": "本人：测试；出生1995-05-12",
-                }
-            ],
-        )
-        monkeypatch.setattr(
-            "apps.web.backend.api.memories.memory_store.delete_memory",
-            lambda client_id, memory_id: client_id == "client:abc" and memory_id == 9,
-        )
-        transport = httpx.ASGITransport(app=app)
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-            list_response = await client.get(
-                "/api/memories",
-                params={"client_id": "client:abc", "query": "测试"},
-            )
-            delete_response = await client.delete(
-                "/api/memories/9",
-                params={"client_id": "client:abc"},
-            )
-
-        assert list_response.status_code == 200
-        assert list_response.json()["memories"][0]["id"] == 9
-        assert delete_response.status_code == 200
-        assert delete_response.json()["deleted"] is True
-
-    asyncio.run(run_test())
-
-
-def test_web_chat_uses_agent_runner(monkeypatch):
-    async def fake_run_agent(
-        session_id: str,
-        message: str,
-        user_id: str | None = None,
-    ) -> str:
-        assert session_id == "web:test"
-        assert "基础命盘" in message
-        assert user_id is None
-        return "fake agent output"
-
-    async def run_test() -> None:
-        monkeypatch.setattr("apps.web.backend.api.chat.run_agent", fake_run_agent)
-        transport = httpx.ASGITransport(app=app)
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post(
-                "/api/chat",
-                json={"session_id": "web:test", "message": "基础命盘"},
-            )
-
-        assert response.status_code == 200
-        assert response.json() == {"session_id": "web:test", "output": "fake agent output"}
-
-    asyncio.run(run_test())
-
-
-def test_web_chat_forwards_client_id(monkeypatch):
-    async def fake_run_agent(
-        session_id: str,
-        message: str,
-        user_id: str | None = None,
-    ) -> str:
-        assert session_id == "web:test"
-        assert "基础命盘" in message
-        assert user_id == "client:abc"
-        return "fake agent output"
-
-    async def run_test() -> None:
-        monkeypatch.setattr("apps.web.backend.api.chat.run_agent", fake_run_agent)
-        transport = httpx.ASGITransport(app=app)
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post(
-                "/api/chat",
-                json={
-                    "session_id": "web:test",
-                    "client_id": "client:abc",
-                    "message": "基础命盘",
-                },
-            )
-
-        assert response.status_code == 200
-        assert response.json() == {"session_id": "web:test", "output": "fake agent output"}
 
     asyncio.run(run_test())

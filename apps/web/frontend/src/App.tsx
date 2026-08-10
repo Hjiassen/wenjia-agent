@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Layout, App as AntdApp, Button, Drawer, Grid, Tooltip } from "antd";
+import { Layout, App as AntdApp, Button, Drawer, Grid, Spin, Tooltip } from "antd";
 import { MenuUnfoldOutlined, PlusOutlined } from "@ant-design/icons";
 import { ChatSider } from "./components/ChatSider";
 import { ChatWindow } from "./components/ChatWindow";
+import { AuthDialog } from "./components/AuthDialog";
 import { RunFlowPanel, type RunFlowTurn } from "./components/RunFlowPanel";
 import { StreamFlowError, useChatStream } from "./hooks/useChatStream";
 import { usePwaInstall, type PwaInstallTarget } from "./hooks/usePwaInstall";
@@ -11,7 +12,7 @@ import {
   PWA_UPDATE_AVAILABLE_EVENT,
   reloadForPwaUpdate,
 } from "./lib/serviceWorker";
-import type { ChatMessage, Conversation, FlowEvent, Profile, SuggestedQuestion } from "./types";
+import type { AuthUser, ChatMessage, Conversation, FlowEvent, Profile, SuggestedQuestion } from "./types";
 import { buildProfilePrompt, toAttachedProfile } from "./lib/profileText";
 import { shouldRefreshProfiles } from "./lib/profileEvents";
 import {
@@ -24,6 +25,7 @@ import {
   saveActiveSessionId,
   saveConversations,
   withMessage,
+  setStorageNamespace,
 } from "./lib/storage";
 
 type HealthStatus = "checking" | "ready" | "error";
@@ -189,6 +191,8 @@ export default function App() {
   const [pending, setPending] = useState<PendingState>(IDLE_PENDING);
   const [health, setHealth] = useState<HealthStatus>("checking");
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [selectedProfileIds, setSelectedProfileIds] = useState<number[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [siderCollapsed, setSiderCollapsed] = useState(false);
@@ -202,15 +206,46 @@ export default function App() {
   // `md` is unset until the first measurement; treat only an explicit false as mobile.
   const isMobile = screens.md === false;
 
-  const loadProfiles = useCallback(async (id: string) => {
+  const loadProfiles = useCallback(async () => {
     try {
-      const response = await fetch(`/api/profiles/${encodeURIComponent(id)}`);
+      const response = await fetch("/api/profiles", { credentials: "include" });
       if (!response.ok) return;
       const payload = await response.json();
       setProfiles(Array.isArray(payload.profiles) ? payload.profiles : []);
     } catch {
       // Profiles are a non-critical panel; ignore transient fetch errors.
     }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/me", { credentials: "include" })
+      .then(async (response) => (response.ok ? (await response.json()).user as AuthUser : null))
+      .catch(() => null)
+      .then((currentUser) => {
+        if (cancelled) return;
+        setUser(currentUser);
+        setAuthReady(true);
+        setStorageNamespace(currentUser ? `user:${currentUser.id}` : "auth-pending");
+        setState(initialState());
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleAuthenticated = useCallback((currentUser: AuthUser) => {
+    setUser(currentUser);
+    setAuthReady(true);
+    setStorageNamespace(`user:${currentUser.id}`);
+    setState(initialState());
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => undefined);
+    setUser(null);
+    setStorageNamespace("auth-pending");
+    setState(initialState());
+    setProfiles([]);
+    setSelectedProfileIds([]);
   }, []);
 
   useEffect(() => {
@@ -222,7 +257,7 @@ export default function App() {
   }, [sessionId]);
 
   useEffect(() => {
-    loadProfiles(sessionId);
+    loadProfiles();
   }, [sessionId, loadProfiles]);
 
   useEffect(() => {
@@ -535,7 +570,7 @@ export default function App() {
               streamingError: liveError,
             });
             if (shouldRefreshProfiles(event)) {
-              void loadProfiles(event.session_id || activeSession);
+              void loadProfiles();
             }
           },
           onAnswerDelta: (_delta, text) => {
@@ -563,7 +598,7 @@ export default function App() {
             });
           },
           onSessionId: (id) => setState((prev) => ({ ...prev, sessionId: id })),
-        });
+        }, selectedProfileIds);
         if (result.aborted) {
           updateMessage(activeSession, liveAssistantCreatedAt, {
             body: "（推演已被手动中止）",
@@ -598,7 +633,7 @@ export default function App() {
               suggestionsLoading: false,
             }),
           );
-        loadProfiles(result.sessionId);
+        loadProfiles();
       } catch (error) {
         const text = error instanceof Error ? error.message : "请求失败，请稍后再试。";
         const streamFlow = error instanceof StreamFlowError ? error.events : [];
@@ -619,7 +654,7 @@ export default function App() {
         setPending(IDLE_PENDING);
       }
     },
-    [appendMessage, updateMessage, isSending, send, sessionId, loadProfiles],
+    [appendMessage, updateMessage, isSending, send, sessionId, loadProfiles, selectedProfileIds],
   );
 
   const handleNewSession = useCallback(() => {
@@ -728,7 +763,7 @@ export default function App() {
   }, [handleInstall]);
 
   useEffect(() => {
-    if (!isMobile || !canInstall || mobileInstallSuggestionShownThisLoad) {
+    if (!user || !isMobile || !canInstall || mobileInstallSuggestionShownThisLoad) {
       return;
     }
 
@@ -756,7 +791,15 @@ export default function App() {
     }, 700);
 
     return () => window.clearTimeout(timer);
-  }, [canInstall, installTarget, isMobile, modal]);
+  }, [canInstall, installTarget, isMobile, modal, user]);
+
+  if (!authReady) {
+    return (
+      <Layout className="app-shell auth-loading-shell">
+        <Spin size="small" />
+      </Layout>
+    );
+  }
 
   const sider = (
     <ChatSider
@@ -768,11 +811,19 @@ export default function App() {
       onDeleteSession={handleDeleteSession}
       onClearHistory={handleClearHistory}
       onCollapse={!isMobile ? () => setSiderCollapsed(true) : undefined}
+      user={user}
+      onAuthenticated={handleAuthenticated}
+      onLogout={handleLogout}
     />
   );
 
   return (
-    <Layout className="app-shell" hasSider={!isMobile}>
+    <>
+    <Layout
+      className={`app-shell${user ? "" : " is-auth-locked"}`}
+      hasSider={!isMobile}
+      aria-hidden={user ? undefined : true}
+    >
       {isMobile ? (
         <Drawer
           placement="left"
@@ -830,7 +881,7 @@ export default function App() {
           canInstall={canInstall}
           onDraftChange={setDraft}
           onSelectedProfileIdsChange={setSelectedProfileIds}
-          onProfilesChanged={() => loadProfiles(sessionId)}
+          onProfilesChanged={loadProfiles}
           onSubmit={handleSubmit}
           onCancel={cancel}
           onOpenSider={() => setDrawerOpen(true)}
@@ -846,5 +897,14 @@ export default function App() {
         />
       </Layout.Content>
     </Layout>
+    {!user ? (
+      <AuthDialog
+        open
+        required
+        onClose={() => undefined}
+        onAuthenticated={handleAuthenticated}
+      />
+    ) : null}
+    </>
   );
 }

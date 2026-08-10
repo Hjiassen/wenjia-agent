@@ -7,9 +7,10 @@ import {
   MenuFoldOutlined,
   PlusOutlined,
 } from "@ant-design/icons";
-import type { Conversation } from "../types";
+import type { AuthUser, Conversation } from "../types";
 import { conversationTitle } from "../lib/storage";
 import { LongTermMemoryDialog } from "./LongTermMemoryDialog";
+import { AuthDialog } from "./AuthDialog";
 
 type HealthStatus = "checking" | "ready" | "error";
 
@@ -22,6 +23,9 @@ interface ChatSiderProps {
   onDeleteSession: (id: string) => void;
   onClearHistory: () => void;
   onCollapse?: () => void;
+  user: AuthUser | null;
+  onAuthenticated: (user: AuthUser) => void;
+  onLogout: () => void;
 }
 
 const HEALTH_META: Record<
@@ -41,8 +45,12 @@ export function ChatSider({
   onDeleteSession,
   onClearHistory,
   onCollapse,
+  user,
+  onAuthenticated,
+  onLogout,
 }: ChatSiderProps) {
   const [memoryOpen, setMemoryOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
   const items = conversations.map((conversation) => {
     const title = conversationTitle(conversation);
     return {
@@ -123,6 +131,14 @@ export function ChatSider({
       </div>
 
       <div className="sider-footer">
+        {user ? (
+          <div className="sider-account">
+            <span>{user.username}</span>
+            <Button size="small" type="text" onClick={onLogout}>退出</Button>
+          </div>
+        ) : (
+          <Button size="small" type="text" onClick={() => setAuthOpen(true)}>登录 / 注册</Button>
+        )}
         {healthNode}
         <Tooltip title="清空本浏览器历史对话">
           <Button size="small" type="text" icon={<DeleteOutlined />} onClick={onClearHistory}>
@@ -131,6 +147,7 @@ export function ChatSider({
         </Tooltip>
       </div>
       <LongTermMemoryDialog open={memoryOpen} onClose={() => setMemoryOpen(false)} />
+      <AuthDialog open={authOpen} onClose={() => setAuthOpen(false)} onAuthenticated={onAuthenticated} />
     </div>
   );
 }

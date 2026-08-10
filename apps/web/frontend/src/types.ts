@@ -149,7 +149,6 @@ export interface AttachedProfile {
 }
 
 export interface ProfilePayload {
-  client_id?: string | null;
   name: string;
   relationship_type: string;
   gender?: string | null;
@@ -176,4 +175,10 @@ export interface LongTermMemory {
   source_session_id?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+}
+
+export interface AuthUser {
+  id: number;
+  username: string;
+  created_at?: string | null;
 }

@@ -17,6 +17,7 @@ dependencies = [
   "aiosqlite>=0.19",
   "fastapi (>=0.138.1,<0.139.0)",
   "uvicorn[standard] (>=0.49.0,<0.50.0)",
+  "pwdlib[argon2]>=0.3.0",
 ]
 
 [project.urls]
@@ -51,6 +52,7 @@ sqlalchemy = ">=2.0"
 aiosqlite = ">=0.19"
 fastapi = ">=0.138.1,<0.139.0"
 uvicorn = { version = ">=0.49.0,<0.50.0", extras = ["standard"] }
+pwdlib = { version = ">=0.3.0", extras = ["argon2"] }
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.0"
