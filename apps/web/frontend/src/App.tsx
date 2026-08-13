@@ -12,19 +12,13 @@ import {
   PWA_UPDATE_AVAILABLE_EVENT,
   reloadForPwaUpdate,
 } from "./lib/serviceWorker";
-import type { AuthUser, ChatMessage, Conversation, FlowEvent, Profile, SuggestedQuestion } from "./types";
+import type { AuthUser, ChatMessage, Conversation, ConversationSummary, FlowEvent, Profile, SuggestedQuestion } from "./types";
 import { buildProfilePrompt, toAttachedProfile } from "./lib/profileText";
 import { shouldRefreshProfiles } from "./lib/profileEvents";
 import {
-  createConversation,
   createSessionId,
   conversationTitle,
-  loadActiveSessionId,
-  loadConversations,
   nowIso,
-  saveActiveSessionId,
-  saveConversations,
-  withMessage,
   setStorageNamespace,
 } from "./lib/storage";
 
@@ -165,14 +159,9 @@ async function fetchSuggestedQuestions(
   }
 }
 
-function initialState(): { conversations: Conversation[]; sessionId: string } {
-  const conversations = loadConversations();
-  const stored = loadActiveSessionId();
-
-  if (stored && conversations.some((conversation) => conversation.id === stored)) {
-    return { conversations, sessionId: stored };
-  }
-  return { conversations, sessionId: stored ?? createSessionId() };
+function emptyConversation(id: string): Conversation {
+  const createdAt = nowIso();
+  return { id, title: "新的对话", createdAt, updatedAt: createdAt, messages: [] };
 }
 
 function previousUserPrompt(messages: ChatMessage[], assistantIndex: number): string {
@@ -186,7 +175,11 @@ function previousUserPrompt(messages: ChatMessage[], assistantIndex: number): st
 }
 
 export default function App() {
-  const [{ conversations, sessionId }, setState] = useState(initialState);
+  const [{ conversations, sessionId }, setState] = useState<{
+    conversations: ConversationSummary[];
+    sessionId: string;
+  }>({ conversations: [], sessionId: createSessionId() });
+  const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState<PendingState>(IDLE_PENDING);
   const [health, setHealth] = useState<HealthStatus>("checking");
@@ -217,6 +210,43 @@ export default function App() {
     }
   }, []);
 
+  const loadConversationList = useCallback(async (preferredId?: string) => {
+    const response = await fetch("/api/conversations", { credentials: "include" });
+    if (!response.ok) {
+      throw new Error("对话列表加载失败");
+    }
+    const payload = await response.json();
+    const nextConversations = Array.isArray(payload.conversations)
+      ? payload.conversations as ConversationSummary[]
+      : [];
+    setState((prev) => {
+      const preferred = preferredId && nextConversations.some((item) => item.id === preferredId)
+        ? preferredId
+        : nextConversations.some((item) => item.id === prev.sessionId)
+          ? prev.sessionId
+          : nextConversations[0]?.id ?? createSessionId();
+      return { conversations: nextConversations, sessionId: preferred };
+    });
+    return nextConversations;
+  }, []);
+
+  const loadConversation = useCallback(async (id: string) => {
+    const response = await fetch(`/api/conversations/${encodeURIComponent(id)}`, {
+      credentials: "include",
+    });
+    if (response.status === 404) {
+      setCurrentConversation(null);
+      return null;
+    }
+    if (!response.ok) {
+      throw new Error("对话加载失败");
+    }
+    const payload = await response.json();
+    const conversation = payload.conversation as Conversation;
+    setCurrentConversation(conversation);
+    return conversation;
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     fetch("/api/auth/me", { credentials: "include" })
@@ -226,35 +256,43 @@ export default function App() {
         if (cancelled) return;
         setUser(currentUser);
         setAuthReady(true);
-        setStorageNamespace(currentUser ? `user:${currentUser.id}` : "auth-pending");
-        setState(initialState());
+        if (currentUser) {
+          setStorageNamespace(`user:${currentUser.id}`);
+          void loadConversationList().catch(() => undefined);
+        } else {
+          setStorageNamespace("auth-pending");
+          setState({ conversations: [], sessionId: createSessionId() });
+          setCurrentConversation(null);
+        }
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [loadConversationList]);
 
   const handleAuthenticated = useCallback((currentUser: AuthUser) => {
     setUser(currentUser);
     setAuthReady(true);
     setStorageNamespace(`user:${currentUser.id}`);
-    setState(initialState());
-  }, []);
+    setCurrentConversation(null);
+    void loadConversationList().catch(() => undefined);
+  }, [loadConversationList]);
 
   const handleLogout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => undefined);
     setUser(null);
     setStorageNamespace("auth-pending");
-    setState(initialState());
+    setState({ conversations: [], sessionId: createSessionId() });
+    setCurrentConversation(null);
     setProfiles([]);
     setSelectedProfileIds([]);
   }, []);
 
   useEffect(() => {
-    saveConversations(conversations);
-  }, [conversations]);
-
-  useEffect(() => {
-    saveActiveSessionId(sessionId);
-  }, [sessionId]);
+    if (!user) {
+      return;
+    }
+    setCurrentConversation(null);
+    void loadConversation(sessionId).catch(() => setCurrentConversation(null));
+  }, [loadConversation, sessionId, user]);
 
   useEffect(() => {
     loadProfiles();
@@ -392,8 +430,8 @@ export default function App() {
   }, [modal]);
 
   const currentMessages = useMemo<ChatMessage[]>(() => {
-    return conversations.find((item) => item.id === sessionId)?.messages ?? [];
-  }, [conversations, sessionId]);
+    return currentConversation?.id === sessionId ? currentConversation.messages : [];
+  }, [currentConversation, sessionId]);
 
   // One run-flow turn per assistant reply, labelled by the user prompt that
   // triggered it; the in-progress reply is appended as a live turn.
@@ -434,43 +472,38 @@ export default function App() {
   }, [currentMessages, pending]);
 
   const appendMessage = useCallback((targetId: string, message: ChatMessage) => {
-    setState((prev) => {
-      const exists = prev.conversations.some((item) => item.id === targetId);
-      const base = exists
-        ? prev.conversations
-        : [createConversation(targetId), ...prev.conversations];
-      const updated = base.map((item) =>
-        item.id === targetId ? withMessage(item, message) : item,
-      );
-      const target = updated.find((item) => item.id === targetId)!;
-      const reordered = [target, ...updated.filter((item) => item.id !== targetId)].slice(0, 30);
-      return { conversations: reordered, sessionId: prev.sessionId };
+    setCurrentConversation((prev) => {
+      const base = prev?.id === targetId ? prev : emptyConversation(targetId);
+      const messages = [...base.messages, message];
+      const firstUser = messages.find((item) => item.role === "user");
+      const title = firstUser ? conversationTitle({
+        id: targetId,
+        title: "新的对话",
+        createdAt: base.createdAt,
+        updatedAt: base.updatedAt,
+        preview: "",
+        messageCount: messages.length,
+      }) : base.title;
+      return { ...base, messages, title, updatedAt: nowIso() };
     });
   }, []);
 
   const updateMessage = useCallback(
     (targetId: string, messageCreatedAt: string, patch: Partial<ChatMessage>) => {
-      setState((prev) => ({
-        ...prev,
-        conversations: prev.conversations.map((conversation) =>
-          conversation.id === targetId
-            ? {
-                ...conversation,
-                messages: conversation.messages.map((message) =>
-                  message.createdAt === messageCreatedAt
-                    ? { ...message, ...patch }
-                    : message,
-                ),
-              }
-            : conversation,
-        ),
-      }));
+      setCurrentConversation((conversation) => conversation?.id === targetId
+        ? {
+            ...conversation,
+            messages: conversation.messages.map((message) =>
+              message.createdAt === messageCreatedAt ? { ...message, ...patch } : message,
+            ),
+          }
+        : conversation);
     },
     [],
   );
 
   useEffect(() => {
-    const conversation = conversations.find((item) => item.id === sessionId);
+    const conversation = currentConversation?.id === sessionId ? currentConversation : null;
     if (!conversation) {
       return;
     }
@@ -515,7 +548,7 @@ export default function App() {
         });
       return;
     }
-  }, [conversations, sessionId, updateMessage]);
+  }, [currentConversation, sessionId, updateMessage]);
 
   const handleSubmit = useCallback(
     async (message: string, attachedProfiles: Profile[] = []) => {
@@ -633,6 +666,8 @@ export default function App() {
               suggestionsLoading: false,
             }),
           );
+        void loadConversation(result.sessionId).catch(() => undefined);
+        void loadConversationList(result.sessionId).catch(() => undefined);
         loadProfiles();
       } catch (error) {
         const text = error instanceof Error ? error.message : "请求失败，请稍后再试。";
@@ -654,7 +689,7 @@ export default function App() {
         setPending(IDLE_PENDING);
       }
     },
-    [appendMessage, updateMessage, isSending, send, sessionId, loadProfiles, selectedProfileIds],
+    [appendMessage, updateMessage, isSending, send, sessionId, loadProfiles, loadConversation, loadConversationList, selectedProfileIds],
   );
 
   const handleNewSession = useCallback(() => {
@@ -669,9 +704,10 @@ export default function App() {
     (id: string) => {
       if (isSending) return;
       setState((prev) => ({ ...prev, sessionId: id }));
+      void loadConversation(id).catch(() => setCurrentConversation(null));
       setDrawerOpen(false);
     },
-    [isSending],
+    [isSending, loadConversation],
   );
 
   const handleDeleteSession = useCallback(
@@ -682,29 +718,26 @@ export default function App() {
 
       modal.confirm({
         title: "删除对话",
-        content: `确定删除「${conversationTitle(target)}」吗？此操作只会清除本浏览器中的对话缓存。`,
+        content: `确定删除「${conversationTitle(target)}」吗？删除后该对话将在账号的所有设备上移除。`,
         okText: "删除",
         okButtonProps: { danger: true },
         cancelText: "取消",
-        onOk: () => {
-          setState((prev) => {
-            const targetIndex = prev.conversations.findIndex(
-              (conversation) => conversation.id === id,
-            );
-            if (targetIndex < 0) {
-              return prev;
-            }
-
-            const remaining = prev.conversations.filter((conversation) => conversation.id !== id);
-            const nextConversation =
-              remaining[targetIndex] ?? remaining[targetIndex - 1] ?? remaining[0];
-            const nextSessionId =
-              prev.sessionId === id ? nextConversation?.id ?? createSessionId() : prev.sessionId;
-
-            return { conversations: remaining, sessionId: nextSessionId };
+        onOk: async () => {
+          const response = await fetch(`/api/conversations/${encodeURIComponent(id)}`, {
+            method: "DELETE",
+            credentials: "include",
           });
-
+          if (!response.ok) {
+            throw new Error("删除对话失败");
+          }
+          const next = conversations.findIndex((conversation) => conversation.id === id);
+          const remaining = conversations.filter((conversation) => conversation.id !== id);
+          const nextSessionId = sessionId === id
+            ? remaining[next]?.id ?? remaining[next - 1]?.id ?? createSessionId()
+            : sessionId;
+          setState({ conversations: remaining, sessionId: nextSessionId });
           if (sessionId === id) {
+            setCurrentConversation(null);
             setDraft("");
             setPending(IDLE_PENDING);
             setFlowOpen(false);
@@ -718,12 +751,20 @@ export default function App() {
   const handleClearHistory = useCallback(() => {
     modal.confirm({
       title: "清空历史对话",
-      content: "确定清空本浏览器中的历史对话吗？此操作不可撤销。",
+      content: "确定清空账号下的历史对话吗？此操作会同步影响所有设备，且不可撤销。",
       okText: "清空",
       okButtonProps: { danger: true },
       cancelText: "取消",
-      onOk: () => {
+      onOk: async () => {
+        const response = await fetch("/api/conversations", {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (!response.ok) {
+          throw new Error("清空对话失败");
+        }
         setState({ conversations: [], sessionId: createSessionId() });
+        setCurrentConversation(null);
         setDraft("");
         setPending(IDLE_PENDING);
       },

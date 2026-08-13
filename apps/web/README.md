@@ -10,8 +10,7 @@
   **[Ant Design X](https://x.ant.design/)**（Bubble / Sender / Conversations /
   ThoughtChain）构建，把 Agent 运行过程渲染成带思考链的实时对话。
 
-Agent 同会话记忆以 `session_id` 为键；跨会话长期记忆以浏览器 `client_id`
-为键；可见的对话历史保存在浏览器的 `localStorage`。
+Agent 同会话记忆以 `session_id` 为键；跨会话长期记忆和对话数据均由服务端按账号保存，前端通过接口查询。
 
 在线 Demo：https://www.jiajiahome.top/
 
@@ -112,6 +111,10 @@ docker compose up --build
 | `GET` | `/health` | 健康检查。 |
 | `POST` | `/api/chat` | 运行一轮 Agent（非流式）。 |
 | `POST` | `/api/chat/stream` | 流式返回 Agent 流程事件（SSE）+ 最终输出。 |
+| `GET` | `/api/conversations` | 查询当前账号的对话摘要列表。 |
+| `GET` | `/api/conversations/{conversation_id}` | 查询当前账号某个对话的完整消息。 |
+| `DELETE` | `/api/conversations/{conversation_id}` | 删除当前账号某个对话。 |
+| `DELETE` | `/api/conversations` | 清空当前账号的全部对话。 |
 | `GET` | `/api/profiles/{session_id}` | 某会话归档的人物档案。 |
 | `GET` | `/api/memories?client_id=...` | 当前浏览器用户的长期记忆。 |
 | `DELETE` | `/api/memories/{memory_id}?client_id=...` | 删除一条长期记忆。 |

@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api import auth, chat, health, memories, profiles
+from .api import auth, chat, conversations, health, memories, profiles
 from .lifespan import lifespan
 from .settings import settings
 
@@ -40,6 +40,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(auth.router, prefix="/api")
     app.include_router(chat.router, prefix="/api")
+    app.include_router(conversations.router, prefix="/api")
     app.include_router(profiles.router, prefix="/api")
     app.include_router(memories.router, prefix="/api")
 
