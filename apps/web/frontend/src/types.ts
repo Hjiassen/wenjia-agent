@@ -121,6 +121,15 @@ export interface Conversation {
   messages: ChatMessage[];
 }
 
+export interface ConversationSummary {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  preview: string;
+  messageCount: number;
+}
+
 export interface Profile {
   id: number;
   name: string;

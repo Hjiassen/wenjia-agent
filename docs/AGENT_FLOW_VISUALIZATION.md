@@ -84,7 +84,7 @@ Web App（`apps/web/frontend`，基于 Ant Design X）调用 `/api/chat/stream`�
 SSE 事件通过 `lib/flowModel.ts::buildPipeline` 归约成阶段（stage），并渲染为每条
 助手气泡下方的 **ThoughtChain**（思考链）：`success→success`、`failed→error`、
 `active/pending→带 spinner 的 pending`。收到 `done` 后写入最终回答（Markdown），
-并把完整事件流随消息保存到浏览器历史记录。
+并把完整事件流随消息保存到服务端账号历史记录。
 
 ## 边界
 

@@ -7,7 +7,7 @@ import {
   MenuFoldOutlined,
   PlusOutlined,
 } from "@ant-design/icons";
-import type { AuthUser, Conversation } from "../types";
+import type { AuthUser, ConversationSummary } from "../types";
 import { conversationTitle } from "../lib/storage";
 import { LongTermMemoryDialog } from "./LongTermMemoryDialog";
 import { AuthDialog } from "./AuthDialog";
@@ -16,7 +16,7 @@ type HealthStatus = "checking" | "ready" | "error";
 
 interface ChatSiderProps {
   sessionId: string;
-  conversations: Conversation[];
+  conversations: ConversationSummary[];
   health: HealthStatus;
   onNewSession: () => void;
   onSelectSession: (id: string) => void;
@@ -140,7 +140,7 @@ export function ChatSider({
           <Button size="small" type="text" onClick={() => setAuthOpen(true)}>登录 / 注册</Button>
         )}
         {healthNode}
-        <Tooltip title="清空本浏览器历史对话">
+        <Tooltip title="清空账号历史对话">
           <Button size="small" type="text" icon={<DeleteOutlined />} onClick={onClearHistory}>
             清空
           </Button>

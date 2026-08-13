@@ -13,8 +13,8 @@ front/back stack**:
   thought-chain of the flow events.
 
 Same-session Agent memory is keyed by `session_id`; cross-session long-term
-memory is keyed by the browser `client_id`; visible chat history lives in the
-browser's `localStorage`.
+memory is keyed by the authenticated account; conversation lists and messages
+are stored server-side and queried through the API.
 
 Live demo: https://www.jiajiahome.top/
 
@@ -99,6 +99,10 @@ for Nginx, Docker, and server details.
 | `GET` | `/health` | Health check. |
 | `POST` | `/api/chat` | Run one Agent turn (non-streaming). |
 | `POST` | `/api/chat/stream` | Stream Agent flow events (SSE) + final output. |
+| `GET` | `/api/conversations` | List conversation summaries for the current account. |
+| `GET` | `/api/conversations/{conversation_id}` | Read one conversation and its full messages. |
+| `DELETE` | `/api/conversations/{conversation_id}` | Delete one conversation for the current account. |
+| `DELETE` | `/api/conversations` | Delete all conversations for the current account. |
 | `GET` | `/api/profiles/{session_id}` | Person profiles archived for a session. |
 | `GET` | `/api/memories?client_id=...` | Long-term memories for the current browser client. |
 | `DELETE` | `/api/memories/{memory_id}?client_id=...` | Delete one long-term memory item. |

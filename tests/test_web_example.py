@@ -49,6 +49,7 @@ def test_web_requires_login_for_app_endpoints():
                 ("GET", "/api/profiles", None),
                 ("GET", "/api/profiles/meta/cities", None),
                 ("GET", "/api/memories", None),
+                ("GET", "/api/conversations", None),
             ]
             responses = [await client.request(method, path, json=body) for method, path, body in endpoints]
         assert all(response.status_code == 401 for response in responses)
