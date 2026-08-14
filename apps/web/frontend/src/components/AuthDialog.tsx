@@ -59,7 +59,7 @@ export function AuthDialog({ open, onClose, onAuthenticated, required = false }:
     >
       <header className="auth-dialog-head">
         <div className="auth-dialog-brand" aria-label="问甲">
-          <span className="auth-dialog-mark">问</span>
+          <img className="auth-dialog-mark" src="/wenjia-mark.svg" alt="" aria-hidden="true" />
           <span>问甲</span>
         </div>
         <h2>{mode === "login" ? "欢迎回来" : "创建你的账号"}</h2>
