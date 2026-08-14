@@ -492,7 +492,17 @@ def _save_profile(
             warnings=built.get("warnings", []),
         ).model_dump()
 
-    saved = profile_writer(relationship, bazi, context)
+    try:
+        saved = profile_writer(relationship, bazi, context)
+    except Exception as exc:  # noqa: BLE001 - surface persistence failures to the Agent.
+        message = str(exc).strip() or "保存人物档案时发生未知错误。"
+        return ToolResult(
+            ok=False,
+            tool_name="save_profile_tool",
+            data={"saved": False, "relationship_type": relationship, "context": context},
+            message=f"档案保存失败：{message}",
+            warnings=built.get("warnings", []),
+        ).model_dump()
     return ToolResult(
         ok=True,
         tool_name="save_profile_tool",

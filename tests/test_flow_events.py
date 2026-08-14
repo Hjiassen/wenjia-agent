@@ -15,7 +15,8 @@ def test_flow_event_display_names():
 
 def test_tool_result_success_detection():
     assert is_tool_result_success({"ok": True}) is True
-    assert is_tool_result_success({"ok": False}) is True
+    assert is_tool_result_success({"ok": False}) is False
+    assert is_tool_result_success({"success": False}) is False
     assert is_tool_result_success('{"ok": true}') is True
     assert is_tool_result_success('{"error": "boom"}') is False
     assert is_tool_result_success("plain text") is True

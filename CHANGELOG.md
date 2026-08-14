@@ -5,6 +5,14 @@ All notable changes to this project will be documented here.
 The format follows the spirit of Keep a Changelog, and this project uses
 semantic versioning once tagged releases begin.
 
+## [0.1.1] - 2026-08-14
+
+### Fixed
+
+- Report interrupted chat jobs and profile-save failures as explicit errors.
+- Classify server-shutdown interruptions consistently in flow events.
+- Harden BaZi tool input handling and add regression coverage for the fixes.
+
 ## [0.1.0] - 2026-07-03
 
 ### Added
