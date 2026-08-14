@@ -40,6 +40,7 @@ export interface FlowEvent {
   content?: string;
   delta?: string;
   source?: "server" | "client";
+  candidate_suggestions?: ProfileCandidateSuggestion[];
 }
 
 export type StageStatus = "pending" | "active" | "success" | "failed";
@@ -111,6 +112,7 @@ export interface ChatMessage {
   streamingStatus?: string;
   streamingError?: boolean;
   incomplete?: boolean;
+  candidateSuggestions?: ProfileCandidateSuggestion[];
 }
 
 export interface Conversation {
@@ -134,6 +136,7 @@ export interface Profile {
   id: number;
   name: string;
   relationship_type: string;
+  custom_relationship?: string | null;
   gender: string | null;
   birth?: {
     year: number | null;
@@ -160,6 +163,7 @@ export interface AttachedProfile {
 export interface ProfilePayload {
   name: string;
   relationship_type: string;
+  custom_relationship?: string | null;
   gender?: string | null;
   birth_year?: number | null;
   birth_month?: number | null;
@@ -171,6 +175,28 @@ export interface ProfilePayload {
   province?: string | null;
   city?: string | null;
   longitude?: string | null;
+}
+
+export interface ProfileCandidate {
+  id: number;
+  display_name: string;
+  suggested_relationship: string | null;
+  relationship_type: string | null;
+  custom_relationship: string | null;
+  status: "pending" | "converted" | "dismissed";
+  source_session_id: string | null;
+  source_message_id: string | null;
+  converted_profile_id: number | null;
+  created_at: string;
+  updated_at: string;
+  last_mentioned_at: string;
+}
+
+export interface ProfileCandidateSuggestion {
+  key: string;
+  display_name: string;
+  suggested_relationship: string;
+  source_message_id: string;
 }
 
 export interface LongTermMemory {

@@ -65,6 +65,10 @@ def test_profile_crud_soft_delete_and_restore(account_db):
                 json={"name": "小艾", "relationship_type": "本人", "gender": "女"},
             )
             deleted = await client.delete(f"/api/profiles/{profile_id}")
+            active_other = await client.post(
+                "/api/profiles",
+                json={"name": "小王", "relationship_type": "朋友"},
+            )
             active_after_delete = await client.get("/api/profiles")
             recycle_bin = await client.get("/api/profiles/deleted")
             restore = await client.post(f"/api/profiles/{profile_id}/restore")
@@ -73,9 +77,10 @@ def test_profile_crud_soft_delete_and_restore(account_db):
         assert listed.json()["profiles"][0]["name"] == "小爱"
         assert updated.json()["profile"]["name"] == "小艾"
         assert deleted.status_code == 200
+        assert active_other.status_code == 201
         assert deleted.json()["profile"]["deleted_at"] is not None
-        assert active_after_delete.json()["profiles"] == []
-        assert recycle_bin.json()["profiles"][0]["id"] == profile_id
+        assert [item["name"] for item in active_after_delete.json()["profiles"]] == ["小王"]
+        assert [item["id"] for item in recycle_bin.json()["profiles"]] == [profile_id]
         assert restore.status_code == 200
         assert restore.json()["profile"]["deleted_at"] is None
 
@@ -134,5 +139,36 @@ def test_only_one_active_self_profile_and_restore_checks_conflict(account_db):
         assert duplicate.status_code == 409
         assert replacement.status_code == 201
         assert restore.status_code == 409
+
+    asyncio.run(run_test())
+
+
+def test_profile_relationship_enum_and_custom_relationship(account_db):
+    async def run_test() -> None:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            await _register(client, "Alice")
+            invalid_enum = await client.post(
+                "/api/profiles",
+                json={"name": "同事小王", "relationship_type": "同事"},
+            )
+            missing_custom = await client.post(
+                "/api/profiles",
+                json={"name": "同事小王", "relationship_type": "其他"},
+            )
+            created = await client.post(
+                "/api/profiles",
+                json={
+                    "name": "同事小王",
+                    "relationship_type": "其他",
+                    "custom_relationship": "同事",
+                },
+            )
+
+        assert invalid_enum.status_code == 422
+        assert missing_custom.status_code == 422
+        assert created.status_code == 201
+        assert created.json()["profile"]["relationship_type"] == "其他"
+        assert created.json()["profile"]["custom_relationship"] == "同事"
 
     asyncio.run(run_test())

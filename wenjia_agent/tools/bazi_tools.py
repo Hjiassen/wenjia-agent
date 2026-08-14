@@ -11,7 +11,7 @@ from wenjia_agent.domain.schemas import BaziResult, BirthInfo, ToolResult
 from wenjia_agent.runtime import memory_store
 from wenjia_agent.runtime.run_context import WenjiaRunContext
 
-PROFILE_RELATIONSHIPS = {"本人", "父亲", "母亲", "配偶", "孩子", "其他"}
+PROFILE_RELATIONSHIPS = {"本人", "父亲", "母亲", "伴侣", "子女", "朋友", "其他"}
 
 _adapter = BaziAdapter()
 
@@ -392,9 +392,6 @@ def build_bazi_context_tool(
         ),
         build_bazi_context_data,
     )
-    # Persist the charted subject deterministically so a profile always lands in
-    # the DB without depending on the model to call ``save_profile_tool``.
-    _autosave_subject(ctx, result)
     return result
 
 
@@ -443,25 +440,6 @@ def build_luck_cycle_context_tool(
     )
 
 
-def _autosave_subject(ctx: RunContextWrapper[WenjiaRunContext] | None, result: dict) -> None:
-    """Best-effort 本人 persistence on a successful, freshly-computed chart."""
-
-    if not isinstance(result, dict) or not result.get("ok") or result.get("from_cache"):
-        return
-    run_context = getattr(ctx, "context", None)
-    data = result.get("data") or {}
-    bazi = data.get("bazi") or {}
-    context = data.get("context") or {}
-    if not bazi or not context:
-        return
-    try:
-        profile_writer = getattr(run_context, "profile_writer", None)
-        if profile_writer is not None:
-            profile_writer("本人", bazi, context)
-    except Exception:  # noqa: BLE001 - persistence is best-effort, never break charting.
-        pass
-
-
 def _run_context(ctx: RunContextWrapper[WenjiaRunContext] | None) -> WenjiaRunContext | None:
     run_context = getattr(ctx, "context", None)
     return run_context if isinstance(run_context, WenjiaRunContext) else None
@@ -471,6 +449,7 @@ def _save_profile(
     run_context: WenjiaRunContext | None,
     relationship_type: str,
     arguments: dict,
+    custom_relationship: str | None = None,
 ) -> dict:
     """Chart a person and persist them as a conversation profile.
 
@@ -478,7 +457,20 @@ def _save_profile(
     testable without constructing SDK tool-call plumbing.
     """
 
-    relationship = relationship_type if relationship_type in PROFILE_RELATIONSHIPS else "本人"
+    relationship = relationship_type.strip()
+    if relationship not in PROFILE_RELATIONSHIPS:
+        return ToolResult(
+            ok=False,
+            tool_name="save_profile_tool",
+            message="与本人关系必须先确认，并映射为固定关系枚举。",
+        ).model_dump()
+    custom = (custom_relationship or "").strip()
+    if relationship == "其他" and not custom:
+        return ToolResult(
+            ok=False,
+            tool_name="save_profile_tool",
+            message="关系为“其他”时，必须先确认并提供关系说明。",
+        ).model_dump()
 
     built = build_bazi_context_data(**arguments)
     if not built["ok"]:
@@ -487,6 +479,8 @@ def _save_profile(
     data = built.get("data") or {}
     bazi = data.get("bazi") or {}
     context = data.get("context") or {}
+    if custom:
+        context = {**context, "custom_relationship": custom}
 
     profile_writer = getattr(run_context, "profile_writer", None) if run_context else None
     if profile_writer is None:
@@ -523,6 +517,7 @@ def save_profile_tool(
     city: str | None = None,
     longitude: float | None = None,
     relationship_type: str = "本人",
+    custom_relationship: str | None = None,
 ) -> dict:
     """Chart a person and save them as a conversation profile (人物档案).
 
@@ -548,6 +543,7 @@ def save_profile_tool(
             city=city,
             longitude=longitude,
         ),
+        custom_relationship,
     )
 
 

@@ -4,6 +4,7 @@ import { Badge, Button, Tooltip, Typography } from "antd";
 import {
   DatabaseOutlined,
   DeleteOutlined,
+  IdcardOutlined,
   MenuFoldOutlined,
   PlusOutlined,
 } from "@ant-design/icons";
@@ -26,6 +27,8 @@ interface ChatSiderProps {
   user: AuthUser | null;
   onAuthenticated: (user: AuthUser) => void;
   onLogout: () => void;
+  onOpenProfiles: () => void;
+  candidateCount?: number;
 }
 
 const HEALTH_META: Record<
@@ -48,6 +51,8 @@ export function ChatSider({
   user,
   onAuthenticated,
   onLogout,
+  onOpenProfiles,
+  candidateCount = 0,
 }: ChatSiderProps) {
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
@@ -128,6 +133,20 @@ export function ChatSider({
           activeKey={sessionId}
           onActiveChange={onSelectSession}
         />
+      </div>
+
+      <div className="sider-tools">
+        <Badge count={candidateCount} size="small" offset={[-4, 4]}>
+          <Button
+            type="text"
+            block
+            icon={<IdcardOutlined />}
+            className="sider-profile-button"
+            onClick={onOpenProfiles}
+          >
+            人物档案
+          </Button>
+        </Badge>
       </div>
 
       <div className="sider-footer">

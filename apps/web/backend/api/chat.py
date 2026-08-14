@@ -14,6 +14,7 @@ from wenjia_agent.runtime.suggestions import generate_suggestions
 from apps.web.backend.api.auth import require_current_user
 from apps.web.backend.modules import profile_store as account_profile_store
 from apps.web.backend.modules import conversation_store
+from apps.web.backend.modules.profile_candidate_detector import detect_profile_candidates
 
 from ..schemas import (
     ChatRequest,
@@ -85,7 +86,14 @@ async def chat(
     except Exception as exc:  # noqa: BLE001 - web transport boundary.
         raise HTTPException(status_code=502, detail=f"Agent request failed: {exc}") from exc
 
-    conversation_store.append_message(int(user["id"]), session_id, "assistant", output, payload={"flow": []})
+    candidate_suggestions = detect_profile_candidates(payload.message, session_id)
+    conversation_store.append_message(
+        int(user["id"]),
+        session_id,
+        "assistant",
+        output,
+        payload={"flow": [], "candidateSuggestions": candidate_suggestions},
+    )
 
     return ChatResponse(session_id=session_id, output=output)
 
@@ -147,6 +155,7 @@ async def chat_stream(
         events: list[dict] = []
         assistant_body = ""
         assistant_type = ""
+        candidate_suggestions = detect_profile_candidates(payload.message, session_id)
         try:
             async for event in stream_agent_events(
                 session_id=session_id,
@@ -159,6 +168,7 @@ async def chat_stream(
                     assistant_body += event.get("delta", "")
                 elif event.get("type") == "done":
                     assistant_body = event.get("content") or assistant_body
+                    event["candidate_suggestions"] = candidate_suggestions
                 elif event.get("type") == "error":
                     assistant_type = "error"
                     assistant_body = event.get("message") or assistant_body or "请求失败。"
@@ -173,7 +183,13 @@ async def chat_stream(
                 session_id,
                 "assistant",
                 assistant_body,
-                payload={"flow": flow, "type": assistant_type},
+                payload={
+                    "flow": flow,
+                    "type": assistant_type,
+                    "candidateSuggestions": candidate_suggestions
+                    if not assistant_type
+                    else [],
+                },
             )
 
     return StreamingResponse(

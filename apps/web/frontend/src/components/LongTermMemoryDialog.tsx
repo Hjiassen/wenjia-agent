@@ -77,7 +77,7 @@ export function LongTermMemoryDialog({ open, onClose }: Props) {
         </div>}
       </div>
     </Modal>
-    <Modal title={editing ? "编辑长期记忆" : "新增长期记忆"} open={formOpen} onCancel={() => setFormOpen(false)} okText="保存" cancelText="取消" confirmLoading={saving} onOk={() => form.submit()} destroyOnClose>
+    <Modal title={editing ? "编辑长期记忆" : "新增长期记忆"} open={formOpen} onCancel={() => setFormOpen(false)} okText="保存" cancelText="取消" confirmLoading={saving} onOk={() => form.submit()} destroyOnHidden>
       <Form form={form} layout="vertical" onFinish={saveMemory}><Form.Item name="kind" label="类型" rules={[{ required: true }]}><Select options={KIND_OPTIONS} /></Form.Item><Form.Item name="key" label="标识" rules={[{ required: true, message: "请输入标识" }]}><Input maxLength={160} /></Form.Item><Form.Item name="title" label="标题" rules={[{ required: true, message: "请输入标题" }]}><Input maxLength={120} /></Form.Item><Form.Item name="content" label="内容" rules={[{ required: true, message: "请输入内容" }]}><Input.TextArea rows={4} maxLength={4000} /></Form.Item></Form>
     </Modal>
   </>;

@@ -1,17 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bubble, Prompts, Sender, Welcome } from "@ant-design/x";
 import type { BubbleProps } from "@ant-design/x";
-import { Badge, Button, Skeleton, Tag } from "antd";
+import { App as AntdApp, Badge, Button, Drawer, Skeleton, Tag } from "antd";
 import {
+  CloseOutlined,
   DownloadOutlined,
+  EditOutlined,
+  FormOutlined,
   IdcardOutlined,
   MenuOutlined,
+  MessageOutlined,
   NodeIndexOutlined,
+  PlusOutlined,
 } from "@ant-design/icons";
-import type { AttachedProfile, ChatMessage, FlowEvent, Profile } from "../types";
+import type {
+  AttachedProfile,
+  ChatMessage,
+  FlowEvent,
+  Profile,
+  ProfileCandidateSuggestion,
+} from "../types";
 import { renderMarkdown } from "../lib/markdown";
 import { RECOMMENDED_PROMPTS } from "../lib/prompts";
-import { ProfilePanel } from "./ProfilePanel";
+import { ProfilePicker } from "./ProfilePicker";
 
 interface BubbleListRef {
   nativeElement: HTMLDivElement;
@@ -44,13 +55,17 @@ interface ChatWindowProps {
   canInstall: boolean;
   onDraftChange: (value: string) => void;
   onSelectedProfileIdsChange: (ids: number[]) => void;
-  onProfilesChanged: () => void;
   onSubmit: (message: string, attachedProfiles: Profile[]) => void;
   onCancel: () => void;
   onOpenSider: () => void;
   onOpenFlow: () => void;
   onInstall: () => void | Promise<void>;
+  onCandidatesChanged: () => void | Promise<void>;
+  onOpenProfileCandidates: () => void;
+  onCreateSelfProfile: (method: "form" | "conversation", draft: string) => void;
 }
+
+type CandidateActionState = "loading" | "added" | "ignored";
 
 const MAX_LEN = 4000;
 const LIVE_MESSAGE_KEY = "live";
@@ -111,6 +126,11 @@ function assistantMessageRender(
   message: ChatMessage,
   isMobile: boolean,
   onSuggestionClick: (prompt: string) => void,
+  candidateStates: Record<string, CandidateActionState>,
+  onCandidateAction: (
+    suggestion: ProfileCandidateSuggestion,
+    action: "add" | "complete" | "ignore",
+  ) => void,
 ) {
   const suggestions = message.suggestions ?? [];
   const showSuggestions = suggestions.length > 0;
@@ -132,6 +152,57 @@ function assistantMessageRender(
           onItemClick={(info) => onSuggestionClick(String(info.data.key))}
         />
       ) : null}
+      {message.candidateSuggestions?.map((candidate) => {
+        const actionState = candidateStates[candidate.key];
+        if (actionState === "ignored" || actionState === "added") {
+          return (
+            <div key={candidate.key} className="profile-candidate-result">
+              {actionState === "ignored" ? "已忽略" : "已加入待补充人物"}
+            </div>
+          );
+        }
+        return (
+          <section key={candidate.key} className="profile-candidate-prompt">
+            <p>检测到你提到了“{candidate.display_name}”，是否加入待补充人物？</p>
+            <div className="profile-candidate-prompt-actions">
+              <Button
+                type="primary"
+                size="small"
+                icon={<PlusOutlined />}
+                className="chat-compact-action"
+                aria-label="加入待补充人物"
+                loading={actionState === "loading"}
+                onClick={() => onCandidateAction(candidate, "add")}
+              >
+                <span className="desktop-action-label">加入待补充</span>
+                <span className="mobile-action-label">待补充</span>
+              </Button>
+              <Button
+                size="small"
+                icon={<EditOutlined />}
+                className="chat-compact-action"
+                aria-label="现在补充人物资料"
+                disabled={actionState === "loading"}
+                onClick={() => onCandidateAction(candidate, "complete")}
+              >
+                <span className="desktop-action-label">现在补充</span>
+                <span className="mobile-action-label">补资料</span>
+              </Button>
+              <Button
+                type="text"
+                size="small"
+                icon={<CloseOutlined />}
+                className="chat-dismiss-action"
+                aria-label="忽略候选人物"
+                disabled={actionState === "loading"}
+                onClick={() => onCandidateAction(candidate, "ignore")}
+              >
+                <span className="desktop-action-label">忽略</span>
+              </Button>
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }
@@ -216,14 +287,22 @@ export function ChatWindow({
   canInstall,
   onDraftChange,
   onSelectedProfileIdsChange,
-  onProfilesChanged,
   onSubmit,
   onCancel,
   onOpenSider,
   onOpenFlow,
   onInstall,
+  onCandidatesChanged,
+  onOpenProfileCandidates,
+  onCreateSelfProfile,
 }: ChatWindowProps) {
+  const { message: messageApi } = AntdApp.useApp();
   const [profilePickerOpen, setProfilePickerOpen] = useState(false);
+  const [draftProfileIds, setDraftProfileIds] = useState<number[]>(selectedProfileIds);
+  const [candidateStates, setCandidateStates] = useState<Record<string, CandidateActionState>>({});
+  const [dismissedSelfPromptSessions, setDismissedSelfPromptSessions] = useState<Set<string>>(
+    () => new Set(),
+  );
   const composerRef = useRef<HTMLDivElement | null>(null);
   const bubbleListRef = useRef<BubbleListRef | null>(null);
   const userScrollLockedRef = useRef(false);
@@ -250,6 +329,51 @@ export function ChatWindow({
     onSubmit(text, selectedProfiles);
   }, [isSending, onSubmit, selectedProfiles]);
 
+  const handleCandidateAction = useCallback(async (
+    suggestion: ProfileCandidateSuggestion,
+    action: "add" | "complete" | "ignore",
+  ) => {
+    if (action === "ignore") {
+      setCandidateStates((current) => ({ ...current, [suggestion.key]: "ignored" }));
+      return;
+    }
+    setCandidateStates((current) => ({ ...current, [suggestion.key]: "loading" }));
+    try {
+      const response = await fetch("/api/profile-candidates", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          display_name: suggestion.display_name,
+          suggested_relationship: suggestion.suggested_relationship,
+          source_session_id: sessionId,
+          source_message_id: suggestion.source_message_id,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("加入待补充人物失败");
+      }
+      setCandidateStates((current) => ({ ...current, [suggestion.key]: "added" }));
+      await onCandidatesChanged();
+      messageApi.success("已加入待补充人物");
+      if (action === "complete") {
+        onOpenProfileCandidates();
+      }
+    } catch (error) {
+      setCandidateStates((current) => {
+        const next = { ...current };
+        delete next[suggestion.key];
+        return next;
+      });
+      messageApi.error(error instanceof Error ? error.message : "加入待补充人物失败");
+    }
+  }, [messageApi, onCandidatesChanged, onOpenProfileCandidates, sessionId]);
+
+  const startSelfProfile = (method: "form" | "conversation") => {
+    setDismissedSelfPromptSessions((current) => new Set(current).add(sessionId));
+    onCreateSelfProfile(method, draft);
+  };
+
   const items = useMemo(() => {
     let hasStreamingMessage = false;
     const list = messages.map((message, index) => {
@@ -265,7 +389,14 @@ export function ChatWindow({
         item.messageRender = () => pendingAssistantRender(pendingFromStreamingMessage(message));
       } else if (isAssistant && !isError) {
         item.messageRender = (text: string) =>
-          assistantMessageRender(text, message, isMobile, handleSubmit);
+          assistantMessageRender(
+            text,
+            message,
+            isMobile,
+            handleSubmit,
+            candidateStates,
+            (candidate, action) => void handleCandidateAction(candidate, action),
+          );
       }
       if (!isAssistant && message.profileContext?.length) {
         item.messageRender = (text: string) => userMessageRender(text, message.profileContext);
@@ -287,9 +418,12 @@ export function ChatWindow({
       });
     }
     return list;
-  }, [messages, pending, isMobile, handleSubmit]);
+  }, [messages, pending, isMobile, handleSubmit, candidateStates, handleCandidateAction]);
 
   const showWelcome = messages.length === 0 && !pending.active;
+  const showSelfProfilePrompt =
+    !profiles.some((profile) => profile.relationship_type === "本人") &&
+    !dismissedSelfPromptSessions.has(sessionId);
   const lastUserKey = useMemo(() => {
     for (let index = messages.length - 1; index >= 0; index -= 1) {
       if (messages[index].role === "user") {
@@ -363,6 +497,9 @@ export function ChatWindow({
     if (!profilePickerOpen) {
       return;
     }
+    if (isMobile) {
+      return;
+    }
     const closeOnOutside = (event: PointerEvent) => {
       if (!composerRef.current?.contains(event.target as Node)) {
         setProfilePickerOpen(false);
@@ -379,7 +516,22 @@ export function ChatWindow({
       document.removeEventListener("pointerdown", closeOnOutside);
       document.removeEventListener("keydown", closeOnEscape);
     };
-  }, [profilePickerOpen]);
+  }, [isMobile, profilePickerOpen]);
+
+  const openProfilePicker = () => {
+    setDraftProfileIds(selectedProfileIds);
+    setProfilePickerOpen(true);
+  };
+
+  const cancelProfilePicker = () => {
+    setDraftProfileIds(selectedProfileIds);
+    setProfilePickerOpen(false);
+  };
+
+  const confirmProfilePicker = () => {
+    onSelectedProfileIdsChange(draftProfileIds);
+    setProfilePickerOpen(false);
+  };
 
   const removeSelectedProfile = (profileId: number) => {
     onSelectedProfileIdsChange(selectedProfileIds.filter((id) => id !== profileId));
@@ -408,12 +560,13 @@ export function ChatWindow({
     ) : null;
 
   const profilePicker = (
-      <ProfilePanel
-        profiles={profiles}
-      selectedProfileIds={selectedProfileIds}
-      onSelectedProfileIdsChange={onSelectedProfileIdsChange}
-        onChanged={onProfilesChanged}
-      />
+    <ProfilePicker
+      profiles={profiles}
+      value={draftProfileIds}
+      onChange={setDraftProfileIds}
+      onCancel={cancelProfilePicker}
+      onConfirm={confirmProfilePicker}
+    />
   );
 
   return (
@@ -463,6 +616,47 @@ export function ChatWindow({
         onPointerDownCapture={lockAutoScroll}
       >
         <div className="chat-column">
+          {showSelfProfilePrompt ? (
+            <section className="chat-self-profile-prompt" aria-label="创建本人档案">
+              <div>
+                <strong>创建本人档案后，可在提问时直接选择</strong>
+                <p>姓名和与本人关系会先由你确认，系统不会自动建档。</p>
+              </div>
+              <div className="chat-self-profile-actions">
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<FormOutlined />}
+                  className="chat-compact-action"
+                  aria-label="表单填写本人档案"
+                  onClick={() => startSelfProfile("form")}
+                >
+                  <span className="desktop-action-label">表单填写</span>
+                  <span className="mobile-action-label">表单</span>
+                </Button>
+                <Button
+                  size="small"
+                  icon={<MessageOutlined />}
+                  className="chat-compact-action"
+                  aria-label="通过对话创建本人档案"
+                  onClick={() => startSelfProfile("conversation")}
+                >
+                  <span className="desktop-action-label">通过对话创建</span>
+                  <span className="mobile-action-label">对话</span>
+                </Button>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<CloseOutlined />}
+                  className="chat-dismiss-action"
+                  aria-label="暂不创建本人档案"
+                  onClick={() => setDismissedSelfPromptSessions((current) => new Set(current).add(sessionId))}
+                >
+                  <span className="desktop-action-label">暂不创建</span>
+                </Button>
+              </div>
+            </section>
+          ) : null}
           {showWelcome ? (
             <div className="chat-welcome">
               <Welcome
@@ -505,14 +699,16 @@ export function ChatWindow({
 
       <div className="chat-composer">
         <div className="chat-column composer-column" ref={composerRef}>
-          <div
-            className={`composer-profile-popover${profilePickerOpen ? " is-open" : ""}`}
-            role="dialog"
-            aria-label="人物档案"
-            aria-hidden={!profilePickerOpen}
-          >
-            {profilePicker}
-          </div>
+          {!isMobile ? (
+            <div
+              className={`composer-profile-popover${profilePickerOpen ? " is-open" : ""}`}
+              role="dialog"
+              aria-label="选择本轮人物"
+              aria-hidden={!profilePickerOpen}
+            >
+              {profilePicker}
+            </div>
+          ) : null}
           <Sender
             rootClassName="chat-sender"
             value={draft}
@@ -528,7 +724,7 @@ export function ChatWindow({
                 className={`composer-profile-button${
                   selectedProfiles.length > 0 ? " is-active" : ""
                 }`}
-                onClick={() => setProfilePickerOpen((open) => !open)}
+                onClick={() => profilePickerOpen ? cancelProfilePicker() : openProfilePicker()}
               >
                 <span className="composer-profile-button-text">{profileButtonText}</span>
               </Button>
@@ -540,6 +736,20 @@ export function ChatWindow({
           />
         </div>
       </div>
+      {isMobile ? (
+        <Drawer
+          placement="bottom"
+          open={profilePickerOpen}
+          onClose={cancelProfilePicker}
+          title={null}
+          height="auto"
+          className="profile-picker-drawer"
+          styles={{ body: { padding: 0 } }}
+          destroyOnHidden
+        >
+          {profilePicker}
+        </Drawer>
+      ) : null}
     </div>
   );
 }
