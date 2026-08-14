@@ -78,7 +78,7 @@ def is_tool_result_success(result: object) -> bool:
     """Infer success from a tool result without exposing tool payload details."""
 
     if isinstance(result, dict):
-        if "error" in result:
+        if result.get("ok") is False or result.get("success") is False or "error" in result:
             return False
         return True
 

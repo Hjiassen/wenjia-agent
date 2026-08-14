@@ -120,3 +120,30 @@ def test_profile_save_requires_explicit_tool_call():
     assert result["ok"] is True
     assert calls[0][0] == "伴侣"
     assert calls[0][1]["name"] == "账号人物"
+
+
+def test_profile_save_returns_structured_persistence_error():
+    def writer(_relationship_type: str, _bazi: dict, _context: dict) -> dict:
+        raise ValueError("本人档案已存在")
+
+    context = WenjiaRunContext(profile_writer=writer, session_id="web:account")
+    result = bazi_tools._save_profile(
+        context,
+        "本人",
+        {
+            "name": "账号人物",
+            "gender": "未知",
+            "birth_year": 1995,
+            "birth_month": 5,
+            "birth_day": 12,
+            "birth_hour": 9,
+            "birth_minute": 30,
+            "calendar_type": "solar",
+            "province": "北京市",
+            "city": "北京市",
+        },
+    )
+
+    assert result["ok"] is False
+    assert result["data"]["saved"] is False
+    assert "本人档案已存在" in result["message"]

@@ -140,22 +140,36 @@ async def _run(job: ChatJob) -> None:
                 assistant_body = event.get("message") or assistant_body or "请求失败。"
             _publish(job, event)
     except asyncio.CancelledError:
-        if not job.cancel_requested:
-            raise
-        assistant_type = "error"
-        assistant_body = "（推演已被手动中止）"
-        _publish(
-            job,
-            {
-                "type": "interrupted",
-                "id": f"{job.session_id}:cancelled",
-                "session_id": job.session_id,
-                "timestamp": _now_iso(),
-                "success": False,
-                "source": "server",
-                "message": "推演已被手动中止。",
-            },
-        )
+        if job.cancel_requested:
+            assistant_type = "error"
+            assistant_body = "（推演已被手动中止）"
+            _publish(
+                job,
+                {
+                    "type": "interrupted",
+                    "id": f"{job.session_id}:cancelled",
+                    "session_id": job.session_id,
+                    "timestamp": _now_iso(),
+                    "success": False,
+                    "source": "server",
+                    "message": "推演已被手动中止。",
+                },
+            )
+        else:
+            assistant_type = "error"
+            assistant_body = "（推演因意外中断而失败）"
+            _publish(
+                job,
+                {
+                    "type": "error",
+                    "id": f"{job.session_id}:unexpected-cancel",
+                    "session_id": job.session_id,
+                    "timestamp": _now_iso(),
+                    "success": False,
+                    "source": "server",
+                    "message": "推演因意外中断而失败，请重试。",
+                },
+            )
     except Exception as exc:  # noqa: BLE001 - detached task boundary.
         assistant_type = "error"
         assistant_body = f"请求失败：{exc}"
