@@ -5,13 +5,13 @@ from __future__ import annotations
 import json
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from wenjia_agent.runtime.runner import run_agent
-from wenjia_agent.runtime.stream_runner import stream_agent_events
 from wenjia_agent.runtime.suggestions import generate_suggestions
 from apps.web.backend.api.auth import require_current_user
+from apps.web.backend.modules import chat_jobs
 from apps.web.backend.modules import profile_store as account_profile_store
 from apps.web.backend.modules import conversation_store
 from apps.web.backend.modules.profile_candidate_detector import detect_profile_candidates
@@ -57,6 +57,8 @@ async def chat(
     session_id = payload.session_id or f"web:{uuid.uuid4()}"
     if not conversation_store.can_access(int(user["id"]), session_id):
         raise HTTPException(status_code=404, detail="conversation not found")
+    if chat_jobs.is_running(int(user["id"]), session_id):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该对话已有推演正在进行。")
     effective_user_id, run_options = _account_run_options(payload, user)
     conversation_store.append_message(
         int(user["id"]),
@@ -133,6 +135,8 @@ async def chat_stream(
     session_id = payload.session_id or f"web:{uuid.uuid4()}"
     if not conversation_store.can_access(int(user["id"]), session_id):
         raise HTTPException(status_code=404, detail="conversation not found")
+    if chat_jobs.is_running(int(user["id"]), session_id):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该对话已有推演正在进行。")
     effective_user_id, run_options = _account_run_options(payload, user)
     conversation_store.append_message(
         int(user["id"]),
@@ -151,46 +155,32 @@ async def chat_stream(
         },
     )
 
+    candidate_suggestions = detect_profile_candidates(payload.message, session_id)
+    try:
+        chat_jobs.start(
+            user_id=int(user["id"]),
+            session_id=session_id,
+            effective_user_id=effective_user_id,
+            message=payload.message.strip(),
+            run_options=run_options,
+            candidate_suggestions=candidate_suggestions,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+    queue = chat_jobs.subscribe(int(user["id"]), session_id)
+    if queue is None:
+        raise HTTPException(status_code=500, detail="chat job subscription failed")
+
     async def event_generator():
-        events: list[dict] = []
-        assistant_body = ""
-        assistant_type = ""
-        candidate_suggestions = detect_profile_candidates(payload.message, session_id)
         try:
-            async for event in stream_agent_events(
-                session_id=session_id,
-                message=payload.message.strip(),
-                user_id=effective_user_id,
-                **run_options,
-            ):
-                events.append(event)
-                if event.get("type") == "answer_delta":
-                    assistant_body += event.get("delta", "")
-                elif event.get("type") == "done":
-                    assistant_body = event.get("content") or assistant_body
-                    event["candidate_suggestions"] = candidate_suggestions
-                elif event.get("type") == "error":
-                    assistant_type = "error"
-                    assistant_body = event.get("message") or assistant_body or "请求失败。"
+            while True:
+                event = await queue.get()
+                if event is chat_jobs.DONE:
+                    break
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
         finally:
-            flow = [event for event in events if event.get("type") not in {"answer_delta", "answer_reset"}]
-            if not assistant_body:
-                assistant_body = "（生成未完成）"
-                assistant_type = "error"
-            conversation_store.append_message(
-                int(user["id"]),
-                session_id,
-                "assistant",
-                assistant_body,
-                payload={
-                    "flow": flow,
-                    "type": assistant_type,
-                    "candidateSuggestions": candidate_suggestions
-                    if not assistant_type
-                    else [],
-                },
-            )
+            chat_jobs.unsubscribe(int(user["id"]), session_id, queue)
 
     return StreamingResponse(
         event_generator(),
@@ -201,3 +191,13 @@ async def chat_stream(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@router.post("/chat/{session_id}/cancel")
+async def cancel_chat(
+    session_id: str,
+    user: dict = Depends(require_current_user),
+) -> dict:
+    if not chat_jobs.cancel(int(user["id"]), session_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="running chat not found")
+    return {"cancelled": True}

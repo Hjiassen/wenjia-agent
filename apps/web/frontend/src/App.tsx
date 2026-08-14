@@ -266,6 +266,16 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!user || !currentConversation?.running || currentConversation.id !== sessionId) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      void loadConversation(sessionId).catch(() => undefined);
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [currentConversation?.running, currentConversation?.id, loadConversation, sessionId, user]);
+
+  useEffect(() => {
     let cancelled = false;
     fetch("/api/auth/me", { credentials: "include" })
       .then(async (response) => (response.ok ? (await response.json()).user as AuthUser : null))
@@ -435,7 +445,7 @@ export default function App() {
         content: (
           <div className="pwa-update-notice">
             <p>已发布新的界面和功能，本地安装的 App 需要刷新后才会切换到最新版。</p>
-            <p>刷新只会重新加载页面，不会清除本机保存的对话记录。</p>
+            <p>刷新会重新从服务端加载当前账号的对话记录。</p>
           </div>
         ),
         onOk: () => void reloadForPwaUpdate(),

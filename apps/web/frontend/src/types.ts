@@ -121,6 +121,7 @@ export interface Conversation {
   createdAt: string;
   updatedAt: string;
   messages: ChatMessage[];
+  running?: boolean;
 }
 
 export interface ConversationSummary {
@@ -130,6 +131,7 @@ export interface ConversationSummary {
   updatedAt: string;
   preview: string;
   messageCount: number;
+  running?: boolean;
 }
 
 export interface Profile {
