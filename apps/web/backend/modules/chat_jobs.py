@@ -105,7 +105,6 @@ async def shutdown() -> None:
     jobs = list(_jobs.values())
     for job in jobs:
         if job.task and not job.task.done():
-            job.cancel_requested = True
             job.task.cancel()
     if jobs:
         await asyncio.gather(
