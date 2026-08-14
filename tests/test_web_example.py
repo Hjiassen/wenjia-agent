@@ -45,6 +45,7 @@ def test_web_requires_login_for_app_endpoints():
             endpoints = [
                 ("POST", "/api/chat", {"message": "测试"}),
                 ("POST", "/api/chat/stream", {"message": "测试"}),
+                ("POST", "/api/chat/web:test/cancel", None),
                 ("POST", "/api/chat/suggestions", {"user_message": "测试", "assistant_message": "回答"}),
                 ("GET", "/api/profiles", None),
                 ("GET", "/api/profiles/meta/cities", None),

@@ -111,6 +111,7 @@ docker compose up --build
 | `GET` | `/health` | 健康检查。 |
 | `POST` | `/api/chat` | 运行一轮 Agent（非流式）。 |
 | `POST` | `/api/chat/stream` | 流式返回 Agent 流程事件（SSE）+ 最终输出。 |
+| `POST` | `/api/chat/{session_id}/cancel` | 手动中止当前账号正在运行的推演。 |
 | `GET` | `/api/conversations` | 查询当前账号的对话摘要列表。 |
 | `GET` | `/api/conversations/{conversation_id}` | 查询当前账号某个对话的完整消息。 |
 | `DELETE` | `/api/conversations/{conversation_id}` | 删除当前账号某个对话。 |

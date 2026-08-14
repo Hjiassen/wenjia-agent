@@ -99,6 +99,7 @@ for Nginx, Docker, and server details.
 | `GET` | `/health` | Health check. |
 | `POST` | `/api/chat` | Run one Agent turn (non-streaming). |
 | `POST` | `/api/chat/stream` | Stream Agent flow events (SSE) + final output. |
+| `POST` | `/api/chat/{session_id}/cancel` | Manually cancel a running turn for the current account. |
 | `GET` | `/api/conversations` | List conversation summaries for the current account. |
 | `GET` | `/api/conversations/{conversation_id}` | Read one conversation and its full messages. |
 | `DELETE` | `/api/conversations/{conversation_id}` | Delete one conversation for the current account. |

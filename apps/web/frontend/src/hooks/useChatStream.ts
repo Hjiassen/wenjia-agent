@@ -84,10 +84,18 @@ export function useChatStream() {
   const [isSending, setIsSending] = useState(false);
   const sendingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+  const sessionRef = useRef<string | null>(null);
 
   // Abort the in-flight stream (wired to the Sender cancel button).
   const cancel = useCallback(() => {
+    const sessionId = sessionRef.current;
     abortRef.current?.abort();
+    if (sessionId) {
+      void fetch(`/api/chat/${encodeURIComponent(sessionId)}/cancel`, {
+        method: "POST",
+        credentials: "include",
+      }).catch(() => undefined);
+    }
   }, []);
 
   const send = useCallback(
@@ -102,6 +110,7 @@ export function useChatStream() {
       }
       sendingRef.current = true;
       setIsSending(true);
+      sessionRef.current = sessionId;
       const controller = new AbortController();
       abortRef.current = controller;
 
@@ -296,6 +305,7 @@ export function useChatStream() {
         sendingRef.current = false;
         setIsSending(false);
         abortRef.current = null;
+        sessionRef.current = null;
       }
     },
     [],
