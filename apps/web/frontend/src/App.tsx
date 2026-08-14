@@ -16,6 +16,7 @@ import {
 import type { AuthUser, ChatMessage, Conversation, ConversationSummary, FlowEvent, Profile, SuggestedQuestion } from "./types";
 import { buildProfilePrompt, toAttachedProfile } from "./lib/profileText";
 import { shouldRefreshProfiles } from "./lib/profileEvents";
+import { shouldRefreshConversationOnResume } from "./lib/conversationRecovery";
 import {
   createSessionId,
   conversationTitle,
@@ -38,6 +39,7 @@ const IDLE_PENDING: PendingState = { active: false, body: "", status: "", events
 let mobileInstallSuggestionShownThisLoad = false;
 const KEYBOARD_OPEN_THRESHOLD = 80;
 const SUGGESTION_TIMEOUT_MS = 20_000;
+const RESUME_REFRESH_DELAY_MS = 300;
 
 function installGuideFor(target: PwaInstallTarget): {
   title: string;
@@ -202,6 +204,8 @@ export default function App() {
   const { modal } = AntdApp.useApp();
   const installActionRef = useRef<() => Promise<void> | void>(() => undefined);
   const suggestionRequestsRef = useRef<Set<string>>(new Set());
+  const sendingStateRef = useRef(isSending);
+  const previousSendingRef = useRef(false);
   const screens = Grid.useBreakpoint();
   // `md` is unset until the first measurement; treat only an explicit false as mobile.
   const isMobile = screens.md === false;
@@ -264,6 +268,66 @@ export default function App() {
     setCurrentConversation(conversation);
     return conversation;
   }, []);
+
+  sendingStateRef.current = isSending;
+
+  const refreshConversationAfterResume = useCallback(async () => {
+    if (!user || !shouldRefreshConversationOnResume(document.visibilityState, sendingStateRef.current)) {
+      return;
+    }
+    await Promise.all([
+      loadConversation(sessionId).catch(() => undefined),
+      loadConversationList(sessionId).catch(() => undefined),
+    ]);
+  }, [loadConversation, loadConversationList, sessionId, user]);
+
+  useEffect(() => {
+    const justStoppedSending = previousSendingRef.current && !isSending;
+    previousSendingRef.current = isSending;
+    if (!justStoppedSending || !user || document.visibilityState !== "visible") {
+      return;
+    }
+    void refreshConversationAfterResume();
+  }, [isSending, refreshConversationAfterResume, user]);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    let refreshTimer: number | undefined;
+    const scheduleRefresh = () => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+      if (refreshTimer !== undefined) {
+        window.clearTimeout(refreshTimer);
+      }
+      refreshTimer = window.setTimeout(() => {
+        refreshTimer = undefined;
+        void refreshConversationAfterResume();
+      }, RESUME_REFRESH_DELAY_MS);
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        scheduleRefresh();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", scheduleRefresh);
+    window.addEventListener("online", scheduleRefresh);
+    window.addEventListener("pageshow", scheduleRefresh);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", scheduleRefresh);
+      window.removeEventListener("online", scheduleRefresh);
+      window.removeEventListener("pageshow", scheduleRefresh);
+      if (refreshTimer !== undefined) {
+        window.clearTimeout(refreshTimer);
+      }
+    };
+  }, [refreshConversationAfterResume, user]);
 
   useEffect(() => {
     if (!user || !currentConversation?.running || currentConversation.id !== sessionId) {
