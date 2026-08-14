@@ -1,6 +1,6 @@
 [project]
 name = "wenjia-agent"
-version = "0.1.0"
+version = "0.1.1"
 description = "Open-source Chinese metaphysics Agent powered by the OpenAI Agents SDK."
 authors = [{ name = "wenjia.ai contributors" }]
 license = "Apache-2.0"
@@ -28,7 +28,7 @@ Documentation = "https://github.com/Hjiassen/wenjia-agent#readme"
 
 [tool.poetry]
 name = "wenjia-agent"
-version = "0.1.0"
+version = "0.1.1"
 description = "Open-source Chinese metaphysics Agent powered by the OpenAI Agents SDK."
 authors = ["wenjia.ai contributors"]
 license = "Apache-2.0"
