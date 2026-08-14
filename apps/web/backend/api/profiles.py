@@ -42,7 +42,11 @@ async def list_account_profiles(user: dict = Depends(require_current_user)) -> d
 
 @router.get("/profiles/deleted")
 async def list_deleted_account_profiles(user: dict = Depends(require_current_user)) -> dict:
-    return {"profiles": account_profile_store.list_profiles(int(user["id"]), include_deleted=True)[::-1]}
+    return {
+        "profiles": account_profile_store.list_profiles(
+            int(user["id"]), only_deleted=True
+        )[::-1]
+    }
 
 
 @router.post("/profiles", status_code=status.HTTP_201_CREATED)

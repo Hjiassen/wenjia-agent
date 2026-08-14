@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Layout, App as AntdApp, Button, Drawer, Grid, Spin, Tooltip } from "antd";
-import { MenuUnfoldOutlined, PlusOutlined } from "@ant-design/icons";
+import { Layout, App as AntdApp, Badge, Button, Drawer, Grid, Spin, Tooltip } from "antd";
+import { IdcardOutlined, MenuUnfoldOutlined, PlusOutlined } from "@ant-design/icons";
 import { ChatSider } from "./components/ChatSider";
 import { ChatWindow } from "./components/ChatWindow";
 import { AuthDialog } from "./components/AuthDialog";
 import { RunFlowPanel, type RunFlowTurn } from "./components/RunFlowPanel";
+import { ProfileManager } from "./components/ProfileManager";
 import { StreamFlowError, useChatStream } from "./hooks/useChatStream";
 import { usePwaInstall, type PwaInstallTarget } from "./hooks/usePwaInstall";
 import {
@@ -23,6 +24,7 @@ import {
 } from "./lib/storage";
 
 type HealthStatus = "checking" | "ready" | "error";
+type AppView = "chat" | "profiles";
 
 interface PendingState {
   active: boolean;
@@ -190,6 +192,11 @@ export default function App() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [siderCollapsed, setSiderCollapsed] = useState(false);
   const [flowOpen, setFlowOpen] = useState(false);
+  const [activeView, setActiveView] = useState<AppView>("chat");
+  const [candidateCount, setCandidateCount] = useState(0);
+  const [profileInitialTab, setProfileInitialTab] = useState<"profiles" | "candidates">("profiles");
+  const [profileInitialCreate, setProfileInitialCreate] = useState<string | null>(null);
+  const [profileReturn, setProfileReturn] = useState<{ sessionId: string; draft: string } | null>(null);
   const { send, cancel, isSending } = useChatStream();
   const { canInstall, installTarget, promptInstall } = usePwaInstall();
   const { modal } = AntdApp.useApp();
@@ -207,6 +214,17 @@ export default function App() {
       setProfiles(Array.isArray(payload.profiles) ? payload.profiles : []);
     } catch {
       // Profiles are a non-critical panel; ignore transient fetch errors.
+    }
+  }, []);
+
+  const loadCandidateCount = useCallback(async () => {
+    try {
+      const response = await fetch("/api/profile-candidates", { credentials: "include" });
+      if (!response.ok) return;
+      const payload = await response.json();
+      setCandidateCount(Array.isArray(payload.candidates) ? payload.candidates.length : 0);
+    } catch {
+      // The navigation badge is non-critical and will retry on the next refresh.
     }
   }, []);
 
@@ -284,6 +302,8 @@ export default function App() {
     setCurrentConversation(null);
     setProfiles([]);
     setSelectedProfileIds([]);
+    setActiveView("chat");
+    setCandidateCount(0);
   }, []);
 
   useEffect(() => {
@@ -295,8 +315,10 @@ export default function App() {
   }, [loadConversation, sessionId, user]);
 
   useEffect(() => {
-    loadProfiles();
-  }, [sessionId, loadProfiles]);
+    if (!user) return;
+    void loadProfiles();
+    void loadCandidateCount();
+  }, [sessionId, loadCandidateCount, loadProfiles, user]);
 
   useEffect(() => {
     setSelectedProfileIds([]);
@@ -652,6 +674,8 @@ export default function App() {
           streamingError: false,
           incomplete: false,
           suggestionsLoading: true,
+          candidateSuggestions:
+            result.events.find((event) => event.type === "done")?.candidate_suggestions ?? [],
         });
         void fetchSuggestedQuestions(result.sessionId, message, result.finalOutput)
           .then((suggestions) =>
@@ -698,6 +722,7 @@ export default function App() {
     setDraft("");
     setPending(IDLE_PENDING);
     setDrawerOpen(false);
+    setActiveView("chat");
   }, [isSending]);
 
   const handleSelectSession = useCallback(
@@ -706,6 +731,7 @@ export default function App() {
       setState((prev) => ({ ...prev, sessionId: id }));
       void loadConversation(id).catch(() => setCurrentConversation(null));
       setDrawerOpen(false);
+      setActiveView("chat");
     },
     [isSending, loadConversation],
   );
@@ -855,6 +881,15 @@ export default function App() {
       user={user}
       onAuthenticated={handleAuthenticated}
       onLogout={handleLogout}
+      onOpenProfiles={() => {
+        setProfileInitialTab("profiles");
+        setProfileInitialCreate(null);
+        setProfileReturn(null);
+        setActiveView("profiles");
+        setDrawerOpen(false);
+        setFlowOpen(false);
+      }}
+      candidateCount={candidateCount}
     />
   );
 
@@ -901,6 +936,21 @@ export default function App() {
                   onClick={handleNewSession}
                 />
               </Tooltip>
+              <Tooltip title="人物档案" placement="right">
+                <Badge count={candidateCount} size="small" offset={[-2, 2]}>
+                  <Button
+                    type="text"
+                    aria-label="人物档案"
+                    icon={<IdcardOutlined />}
+                    onClick={() => {
+                      setProfileInitialTab("profiles");
+                      setProfileInitialCreate(null);
+                      setProfileReturn(null);
+                      setActiveView("profiles");
+                    }}
+                  />
+                </Badge>
+              </Tooltip>
             </div>
           ) : (
             sider
@@ -909,33 +959,85 @@ export default function App() {
       )}
 
       <Layout.Content className="app-content">
-        <ChatWindow
-          messages={currentMessages}
-          pending={pending}
-          draft={draft}
-          isSending={isSending}
-          isMobile={isMobile}
-          flowTurnCount={runFlowTurns.length}
-          sessionId={sessionId}
-          profiles={profiles}
-          selectedProfileIds={selectedProfileIds}
-          canInstall={canInstall}
-          onDraftChange={setDraft}
-          onSelectedProfileIdsChange={setSelectedProfileIds}
-          onProfilesChanged={loadProfiles}
-          onSubmit={handleSubmit}
-          onCancel={cancel}
-          onOpenSider={() => setDrawerOpen(true)}
-          onOpenFlow={() => setFlowOpen(true)}
-          onInstall={handleInstall}
-        />
+        {activeView === "profiles" ? (
+          <ProfileManager
+            profiles={profiles}
+            initialTab={profileInitialTab}
+            initialCreateRelationship={profileInitialCreate}
+            onBack={() => {
+              setProfileReturn(null);
+              setProfileInitialCreate(null);
+              setActiveView("chat");
+            }}
+            onProfilesChanged={loadProfiles}
+            onCandidateCountChange={setCandidateCount}
+            onInitialCreateCancelled={() => {
+              setProfileReturn(null);
+              setProfileInitialCreate(null);
+            }}
+            onProfileSaved={(profile) => {
+              if (!profileReturn) return;
+              if (profileReturn.sessionId === sessionId) {
+                setDraft(profileReturn.draft);
+                setSelectedProfileIds((current) =>
+                  current.includes(profile.id) ? current : [...current, profile.id],
+                );
+              }
+              setProfileReturn(null);
+              setProfileInitialCreate(null);
+              setActiveView("chat");
+            }}
+          />
+        ) : (
+          <ChatWindow
+            messages={currentMessages}
+            pending={pending}
+            draft={draft}
+            isSending={isSending}
+            isMobile={isMobile}
+            flowTurnCount={runFlowTurns.length}
+            sessionId={sessionId}
+            profiles={profiles}
+            selectedProfileIds={selectedProfileIds}
+            canInstall={canInstall}
+            onDraftChange={setDraft}
+            onSelectedProfileIdsChange={setSelectedProfileIds}
+            onSubmit={handleSubmit}
+            onCancel={cancel}
+            onOpenSider={() => setDrawerOpen(true)}
+            onOpenFlow={() => setFlowOpen(true)}
+            onInstall={handleInstall}
+            onCandidatesChanged={loadCandidateCount}
+            onOpenProfileCandidates={() => {
+              setProfileInitialTab("candidates");
+              setActiveView("profiles");
+              setFlowOpen(false);
+            }}
+            onCreateSelfProfile={(method, currentDraft) => {
+              if (method === "form") {
+                setProfileReturn({ sessionId, draft: currentDraft });
+                setProfileInitialTab("profiles");
+                setProfileInitialCreate("本人");
+                setActiveView("profiles");
+                setFlowOpen(false);
+                return;
+              }
+              const resume = currentDraft.trim()
+                ? `\n建档完成后，请继续回答我原来的问题：${currentDraft.trim()}`
+                : "";
+              setDraft(
+                "我想通过对话创建本人档案。请先询问我的真实姓名，再让我明确确认与本人关系为“本人”；确认前不要排盘或保存。" + resume,
+              );
+            }}
+          />
+        )}
 
-        <RunFlowPanel
+        {activeView === "chat" ? <RunFlowPanel
           open={flowOpen}
           sessionId={sessionId}
           turns={runFlowTurns}
           onClose={() => setFlowOpen(false)}
-        />
+        /> : null}
       </Layout.Content>
     </Layout>
     {!user ? (

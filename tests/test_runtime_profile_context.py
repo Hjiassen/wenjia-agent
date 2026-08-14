@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-from types import SimpleNamespace
 
 import httpx
 from sqlalchemy import create_engine
@@ -93,30 +92,31 @@ def test_list_profiles_prefers_explicit_account_profiles():
     assert result["data"]["profiles"] == profiles
 
 
-def test_autosave_uses_account_profile_writer():
+def test_profile_save_requires_explicit_tool_call():
     calls: list[tuple[str, dict, dict]] = []
 
     def writer(relationship_type: str, bazi: dict, context: dict) -> dict:
         calls.append((relationship_type, bazi, context))
         return {"id": 10, "name": bazi["name"]}
 
-    result = bazi_tools.build_bazi_context_data(
-        name="账号人物",
-        gender="未知",
-        birth_year=1995,
-        birth_month=5,
-        birth_day=12,
-        birth_hour=9,
-        birth_minute=30,
-        province="北京市",
-        city="北京市",
-    )
-    ctx = SimpleNamespace(
-        context=WenjiaRunContext(profile_writer=writer, session_id="web:account")
+    context = WenjiaRunContext(profile_writer=writer, session_id="web:account")
+    result = bazi_tools._save_profile(
+        context,
+        "伴侣",
+        {
+            "name": "账号人物",
+            "gender": "未知",
+            "birth_year": 1995,
+            "birth_month": 5,
+            "birth_day": 12,
+            "birth_hour": 9,
+            "birth_minute": 30,
+            "calendar_type": "solar",
+            "province": "北京市",
+            "city": "北京市",
+        },
     )
 
-    bazi_tools._autosave_subject(ctx, result)  # type: ignore[arg-type]
-
-    assert calls
-    assert calls[0][0] == "本人"
+    assert result["ok"] is True
+    assert calls[0][0] == "伴侣"
     assert calls[0][1]["name"] == "账号人物"

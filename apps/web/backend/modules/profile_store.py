@@ -6,7 +6,7 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import Column, DateTime, Integer, String, Text, create_engine, select
+from sqlalchemy import Column, DateTime, Integer, String, Text, case, create_engine, inspect, select, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from wenjia_agent.runtime.config import settings
@@ -25,6 +25,7 @@ class UserProfile(Base):
     user_id = Column(Integer, index=True, nullable=False)
     source_session_id = Column(String(128), nullable=True)
     relationship_type = Column(String(20), nullable=False, default="本人")
+    custom_relationship = Column(String(40), nullable=True)
     name = Column(String(64), nullable=False)
     gender = Column(String(10), nullable=True)
     birth_year = Column(Integer, nullable=True)
@@ -67,6 +68,15 @@ def init_db() -> None:
     if _initialized:
         return
     Base.metadata.create_all(_engine)
+    columns = {column["name"] for column in inspect(_engine).get_columns(UserProfile.__tablename__)}
+    if "custom_relationship" not in columns:
+        with _engine.begin() as connection:
+            connection.execute(
+                text(
+                    "ALTER TABLE wenjia_user_profiles "
+                    "ADD COLUMN custom_relationship VARCHAR(40)"
+                )
+            )
     _initialized = True
 
 
@@ -112,6 +122,7 @@ def _serialize(profile: UserProfile) -> dict[str, Any]:
         "user_id": profile.user_id,
         "name": profile.name,
         "relationship_type": profile.relationship_type,
+        "custom_relationship": profile.custom_relationship,
         "gender": profile.gender,
         "birth": {
             "year": profile.birth_year,
@@ -140,13 +151,25 @@ def _serialize(profile: UserProfile) -> dict[str, Any]:
     }
 
 
-def list_profiles(user_id: int, *, include_deleted: bool = False) -> list[dict[str, Any]]:
+def list_profiles(
+    user_id: int,
+    *,
+    include_deleted: bool = False,
+    only_deleted: bool = False,
+) -> list[dict[str, Any]]:
     init_db()
     with _Session() as db:
         query = select(UserProfile).where(UserProfile.user_id == user_id)
-        if not include_deleted:
+        if only_deleted:
+            query = query.where(UserProfile.deleted_at.is_not(None))
+        elif not include_deleted:
             query = query.where(UserProfile.deleted_at.is_(None))
-        rows = db.execute(query.order_by(UserProfile.id)).scalars().all()
+        rows = db.execute(
+            query.order_by(
+                case((UserProfile.relationship_type == "本人", 0), else_=1),
+                UserProfile.updated_at.desc(),
+            )
+        ).scalars().all()
         return [_serialize(row) for row in rows]
 
 
@@ -200,6 +223,7 @@ def create_profile(user_id: int, data: dict[str, Any], *, source_session_id: str
             source_session_id=source_session_id,
             name=name,
             relationship_type=relationship_type,
+            custom_relationship=data.get("custom_relationship"),
             created_at=now,
             updated_at=now,
         )
@@ -231,6 +255,7 @@ def update_profile(user_id: int, profile_id: int, data: dict[str, Any]) -> dict[
         changed_birth = _birth_changed(profile, data)
         profile.name = name
         profile.relationship_type = relationship_type
+        profile.custom_relationship = data.get("custom_relationship")
         _apply_data(profile, data)
         if changed_birth:
             profile.year_pillar = None
@@ -257,8 +282,35 @@ def save_computed_profile(
     """Upsert a freshly calculated chart without touching long-term memory."""
 
     init_db()
-    name = str(bazi.get("name") or context.get("profile_name") or "未命名").strip()
-    relationship = str(relationship_type or "本人").strip() or "本人"
+    name = str(bazi.get("name") or context.get("profile_name") or "").strip()
+    placeholder_names = {
+        "未命名",
+        "匿名用户",
+        "本人",
+        "父亲",
+        "母亲",
+        "伴侣",
+        "子女",
+        "朋友",
+        "孩子",
+        "我对象",
+        "我的父亲",
+        "我的母亲",
+        "我的伴侣",
+        "我的子女",
+        "我的朋友",
+        "他",
+        "她",
+    }
+    if not name or name in placeholder_names:
+        raise ValueError("a user-provided real name is required before saving a profile")
+    allowed_relationships = {"本人", "父亲", "母亲", "伴侣", "子女", "朋友", "其他"}
+    relationship = str(relationship_type or "").strip()
+    if relationship not in allowed_relationships:
+        raise ValueError("relationship_type must be explicitly confirmed")
+    custom_relationship = str(context.get("custom_relationship") or "").strip() or None
+    if relationship == "其他" and custom_relationship is None:
+        raise ValueError("custom_relationship is required for 其他")
     now = _now()
     pillars = context.get("pillars") or {}
     with _Session() as db:
@@ -283,6 +335,7 @@ def save_computed_profile(
             db.add(profile)
         profile.name = name
         profile.relationship_type = relationship
+        profile.custom_relationship = custom_relationship
         profile.gender = bazi.get("gender") or None
         profile.birth_year = _to_int(bazi.get("birth_year") or bazi.get("actual_birth_year"))
         profile.birth_month = _to_int(bazi.get("birth_month") or bazi.get("actual_birth_month"))

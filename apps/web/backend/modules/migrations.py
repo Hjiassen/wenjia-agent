@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from apps.web.backend.modules import auth_store, conversation_store, profile_store
+from apps.web.backend.modules import (
+    auth_store,
+    conversation_store,
+    profile_candidate_store,
+    profile_store,
+)
 from wenjia_agent.runtime import memory_store
 
 
@@ -17,6 +22,7 @@ def run_migrations() -> dict[str, int | bool]:
     auth_store.init_db()
     conversation_store.init_db()
     profile_store.init_db()
+    profile_candidate_store.init_db()
     memory_store.init_db()
     return {
         "schema_ready": True,

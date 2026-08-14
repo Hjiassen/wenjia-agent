@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+
+RelationshipType = Literal["本人", "父亲", "母亲", "伴侣", "子女", "朋友", "其他"]
 
 
 class AuthCredentials(BaseModel):
@@ -74,7 +79,8 @@ class ProfilePayload(BaseModel):
     """Editable person profile fields from the web UI."""
 
     name: str = Field(..., min_length=1, max_length=64)
-    relationship_type: str = Field(default="本人", min_length=1, max_length=20)
+    relationship_type: RelationshipType = "本人"
+    custom_relationship: str | None = Field(default=None, max_length=40)
     gender: str | None = Field(default=None, max_length=10)
     birth_year: int | None = Field(default=None, ge=1, le=9999)
     birth_month: int | None = Field(default=None, ge=1, le=12)
@@ -87,3 +93,68 @@ class ProfilePayload(BaseModel):
     city: str | None = Field(default=None, max_length=50)
     longitude: str | None = Field(default=None, max_length=20)
     model_config = ConfigDict(extra="forbid")
+
+    @field_validator("name")
+    @classmethod
+    def name_must_not_be_blank(cls, value: str) -> str:
+        clean = value.strip()
+        if not clean:
+            raise ValueError("name is required")
+        return clean
+
+    @model_validator(mode="after")
+    def validate_custom_relationship(self) -> "ProfilePayload":
+        custom = (self.custom_relationship or "").strip()
+        if self.relationship_type == "其他" and not custom:
+            raise ValueError("custom_relationship is required for 其他")
+        self.custom_relationship = custom or None
+        return self
+
+
+class ProfileCandidatePayload(BaseModel):
+    """User-confirmed pending-person suggestion from a conversation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    display_name: str = Field(..., min_length=1, max_length=64)
+    suggested_relationship: str | None = Field(default=None, max_length=40)
+    source_session_id: str | None = Field(default=None, max_length=128)
+    source_message_id: str | None = Field(default=None, max_length=128)
+
+    @field_validator("display_name")
+    @classmethod
+    def display_name_must_not_be_blank(cls, value: str) -> str:
+        clean = value.strip()
+        if not clean:
+            raise ValueError("display_name is required")
+        return clean
+
+
+class ProfileCandidateUpdate(BaseModel):
+    """Editable candidate fields before conversion."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    display_name: str = Field(..., min_length=1, max_length=64)
+    relationship_type: RelationshipType | None = None
+    custom_relationship: str | None = Field(default=None, max_length=40)
+
+    @field_validator("display_name")
+    @classmethod
+    def candidate_name_must_not_be_blank(cls, value: str) -> str:
+        clean = value.strip()
+        if not clean:
+            raise ValueError("display_name is required")
+        return clean
+
+    @model_validator(mode="after")
+    def validate_candidate_relationship(self) -> "ProfileCandidateUpdate":
+        custom = (self.custom_relationship or "").strip()
+        if self.relationship_type == "其他" and not custom:
+            raise ValueError("custom_relationship is required for 其他")
+        self.custom_relationship = custom or None
+        return self
+
+
+class ProfileCandidateConvertPayload(ProfilePayload):
+    """Confirmed profile fields used to convert one pending candidate."""
