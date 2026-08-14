@@ -824,16 +824,11 @@ body {
 }
 
 .auth-dialog-mark {
-  display: grid;
+  display: block;
   width: 34px;
   height: 34px;
-  place-items: center;
   border-radius: 7px;
-  background: var(--teal-dark);
-  color: #fff;
-  font-family: "STKaiti", "KaiTi", serif;
-  font-size: 20px;
-  line-height: 1;
+  object-fit: contain;
 }
 
 .auth-dialog-head h2 {
